@@ -1,0 +1,15 @@
+# A libary full of simple memory management stuff 
+
+defmac StackPop out cell
+    read stackPointer cell 0
+    read out cell stackPointer
+    op sub stackPointer stackPointer 1 
+    write stackPointer cell 0
+end
+
+defmac StackPush in cell
+    read stackPointer cell 0
+    op add stackPointer stackPointer 1
+    write in cell stackPointer
+    write stackPointer cell 0
+end

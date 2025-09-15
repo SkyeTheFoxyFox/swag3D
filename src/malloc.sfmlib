@@ -1,0 +1,47 @@
+# A library implementing a simple stack based memory address allocation system
+
+import mem.sfmlib
+
+defmac MallocInit malloc stackCell indexRange
+    table from malloc "type" "malloc" "cell" stackCell
+    set i 0
+    InitLoop:
+        call StackPush i stackCell
+    op add i i 1
+    jump InitLoop lessThan i indexRange
+end
+
+defmac Malloc malloc address
+    call AssertMalloc malloc
+    table get cell malloc "cell"
+    read pointer cell 0
+    jump DoMalloc greaterThan pointer 0
+    set address -1
+    jump End always
+    DoMalloc:
+    call StackPop address cell
+    End:
+end
+
+defmac Free malloc address
+    call AssertMalloc malloc
+    table get cell malloc "cell"
+    jump NoFree lessThan address 0 
+    call StackPush address cell
+    NoFree:
+end
+
+defmac AssertMalloc input
+    type type input
+    if notEqual type "table"
+        error "Expected malloc, found '" type "'"
+    end
+    if in input "type"
+        table get value input "type"
+        if notEqual value "malloc"
+            error "Expected malloc, found '" value "'"
+        end
+    else
+        error "Expected malloc, found 'table'"
+    end
+end

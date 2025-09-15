@@ -1,0 +1,322 @@
+defmac WriteStack x y size
+    op add $stackPointer $stackPointer 1
+    write x $RENDER_STACK_X $stackPointer
+    write y $RENDER_STACK_Y $stackPointer
+    write size $RENDER_STACK_SIZE $stackPointer
+end
+
+defmac ReadStack x y size
+    read x $RENDER_STACK_X $stackPointer
+    read y $RENDER_STACK_Y $stackPointer
+    read size $RENDER_STACK_SIZE $stackPointer
+    op sub $stackPointer $stackPointer 1
+end
+
+defmac ReadObj
+    getblock building $objMeshData 5 $selectedObj
+    getblock building $objVertX 6 $selectedObj
+    getblock building $objVertY 7 $selectedObj
+    getblock building $objVertZ 8 $selectedObj
+    getblock building $objFace0 9 $selectedObj
+    getblock building $objFace1 10 $selectedObj
+    getblock building $objFace2 11 $selectedObj
+    getblock building $objFace3 12 $selectedObj
+    getblock building $objFaceMat 13 $selectedObj
+    read $vertCount $objMeshData 0
+    read $faceCount $objMeshData 1
+    op add $totalExec $totalExec 12
+end
+
+defmac RenderObjs
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            write $OBJ_TASK_ROTATE $COMM_CELL $COMM_OBJ_CURRENT_TASK
+            write 0 $COMM_CELL $COMM_OBJ_QUEUE_RENDER_POINTER
+            write 0 $COMM_CELL $COMM_OBJ_TASK_PROGRESS
+        jump Loop always
+    end
+    
+    for range _ $OBJ_PROC_COUNT
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            call SetFOV $FOV
+            read $markerID $COMM_CELL $COMM_MARKER_ID
+            read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+            read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+            read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            read $queueCount $COMM_CELL $COMM_OBJ_QUEUE_POINTER
+            read $queuePointer $COMM_CELL $COMM_OBJ_QUEUE_RENDER_POINTER
+            read $objTask $COMM_CELL $COMM_OBJ_CURRENT_TASK
+            read $selectedObj $OBJ_QUEUE_MODEL $queuePointer
+            read $objX $OBJ_QUEUE_X $queuePointer
+            read $objY $OBJ_QUEUE_Y $queuePointer
+            read $objZ $OBJ_QUEUE_Z $queuePointer
+            read $objRot $OBJ_QUEUE_ROT $queuePointer
+            op sin $sinR $objRot
+            op cos $cosR $objRot
+            read $objScale $OBJ_QUEUE_SCALE $queuePointer
+            read $taskProgress $COMM_CELL $COMM_OBJ_TASK_PROGRESS
+            call ReadRotMatrix
+            call ReadScreenValues
+            op div $totalExec @ipt 5
+            op add $totalExec $totalExec 40
+            call ReadObj
+            RenderLoop:
+                jump Exit equal $queuePointer $queueCount
+                jump TaskRender equal $objTask $OBJ_TASK_RENDER
+                TaskCache:
+                    jump CacheNotComplete notEqual $taskProgress $vertCount
+                        set $objTask $OBJ_TASK_RENDER
+                        write $objTask $COMM_CELL $COMM_OBJ_CURRENT_TASK
+                        set $taskProgress 0
+                        op add $totalExec $totalExec 5
+                        jump RenderLoopEnd always
+                    CacheNotComplete:
+                    read vertX $objVertX $taskProgress
+                    read vertY $objVertY $taskProgress
+                    read vertZ $objVertZ $taskProgress
+
+                    op mul xCos vertX $cosR
+                    op mul yCos vertY $cosR
+                    op mul xSin vertX $sinR
+                    op mul ySin vertY $sinR
+                    op sub vertX xCos ySin
+                    op add vertY yCos xSin
+
+                    op mul lx vertX $objScale
+                    op mul ly vertY $objScale
+                    op mul lz vertZ $objScale
+                    op sub lx lx $PLAYER_X
+                    op sub ly ly $PLAYER_Y
+                    op sub lz lz $PLAYER_Z
+                    op add lx lx $objX
+                    op add ly ly $objY
+                    op add lz lz $objZ
+                    call ApplyRotMatrixOrigin lx ly lz rotX rotY rotZ
+                    op max drawZ rotZ 0.01
+                    call ProjectPoint drawX drawY rotX rotY drawZ
+                    call ToScreenCoords drawX drawY drawX drawY
+                    write drawX $OBJ_CACHE_X $taskProgress
+                    write drawY $OBJ_CACHE_Y $taskProgress
+                    write rotZ $OBJ_CACHE_Z $taskProgress
+                    op add $taskProgress $taskProgress 1
+                    op add $totalExec $totalExec 46
+                jump RenderLoopEnd always
+                TaskRender:
+                    jump RenderNotComplete notEqual $taskProgress $faceCount
+                        op add $queuePointer $queuePointer 1
+                        read $selectedObj $OBJ_QUEUE_MODEL $queuePointer
+                        read $objX $OBJ_QUEUE_X $queuePointer
+                        read $objY $OBJ_QUEUE_Y $queuePointer
+                        read $objZ $OBJ_QUEUE_Z $queuePointer
+                        read $objRot $OBJ_QUEUE_ROT $queuePointer
+                        op sin $sinR $objRot
+                        op cos $cosR $objRot
+                        read $objScale $OBJ_QUEUE_SCALE $queuePointer
+                        call ReadObj
+                        set $objTask $OBJ_TASK_ROTATE
+                        write $objTask $COMM_CELL $COMM_OBJ_CURRENT_TASK
+                        set $taskProgress 0
+                        op add $totalExec $totalExec 14
+                        jump RenderLoopEnd always
+                    RenderNotComplete:
+                    read face0 $objFace0 $taskProgress
+                    read face1 $objFace1 $taskProgress
+                    read face2 $objFace2 $taskProgress
+                    read face3 $objFace3 $taskProgress
+                    read z0 $OBJ_CACHE_Z face0
+                    read z1 $OBJ_CACHE_Z face1
+                    read z2 $OBJ_CACHE_Z face2
+                    read z3 $OBJ_CACHE_Z face3
+                    op max zMax z0 z1
+                    op max zMax zMax z2
+                    op max zMax zMax z3
+                    op add $totalExec $totalExec 13
+                    jump NextQuad lessThan zMax 0
+                    read x0 $OBJ_CACHE_X face0
+                    read x1 $OBJ_CACHE_X face1
+                    read x2 $OBJ_CACHE_X face2
+                    read x3 $OBJ_CACHE_X face3
+                    read y0 $OBJ_CACHE_Y face0
+                    read y1 $OBJ_CACHE_Y face1
+                    read y2 $OBJ_CACHE_Y face2
+                    read y3 $OBJ_CACHE_Y face3
+                    setmarker posi $markerID 0 x0 y0
+                    setmarker posi $markerID 1 x1 y1
+                    setmarker posi $markerID 2 x2 y2
+                    setmarker posi $markerID 3 x3 y3
+                    setmarker uvi $markerID 0 0 0
+                    setmarker uvi $markerID 1 0 1
+                    setmarker uvi $markerID 2 1 1
+                    setmarker uvi $markerID 3 1 0
+                    op add zSum z0 z1
+                    op add zSum zSum z2
+                    op add zSum zSum z3
+                    op div avgDepth zSum 40
+                    op sub drawLayer 200 avgDepth
+                    setmarker drawLayer $markerID drawLayer
+                    read materialIndex $objFaceMat $taskProgress
+                    call GetMaterial material materialIndex
+                    setmarker texture $markerID false material
+                    setmarker world $markerID true
+                    op add $markerID $markerID 1
+                    op add $totalExec $totalExec 28
+                    NextQuad:
+                    op add $taskProgress $taskProgress 1
+            RenderLoopEnd:
+            jump RenderLoop lessThan $totalExec @ipt
+            Exit:
+            write $markerID $COMM_CELL $COMM_MARKER_ID
+            write $taskProgress $COMM_CELL $COMM_OBJ_TASK_PROGRESS
+            write $queuePointer $COMM_CELL $COMM_OBJ_QUEUE_RENDER_POINTER
+        jump Loop always
+    end
+    end
+end
+
+defmac ReadIcon
+    getblock building $objMeshData 5 $selectedIcon
+    getblock building $objVertX 6 $selectedIcon
+    getblock building $objVertY 7 $selectedIcon
+    getblock building $objFace0 9 $selectedIcon
+    getblock building $objFace1 10 $selectedIcon
+    getblock building $objFace2 11 $selectedIcon
+    getblock building $objFace3 12 $selectedIcon
+    getblock building $objFaceMat 13 $selectedIcon
+    read $vertCount $objMeshData 0
+    read $faceCount $objMeshData 1
+    op add $totalExec $totalExec 10
+end
+
+defmac RenderIcons
+    proc
+    setrate 1000
+    Loop:
+        wait 1e-4
+        write 0 $COMM_CELL $COMM_ICON_QUEUE_RENDER_POINTER
+        write 0 $COMM_CELL $COMM_ICON_TASK_PROGRESS
+    jump Loop always
+    end
+
+    for range _ $ICON_PROC_COUNT
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read $markerID $COMM_CELL $COMM_MARKER_ID
+            read $queueCount $COMM_CELL $COMM_ICON_QUEUE_POINTER
+            read $queuePointer $COMM_CELL $COMM_ICON_QUEUE_RENDER_POINTER
+            read $objTask $COMM_CELL $COMM_ICON_CURRENT_TASK
+            read $selectedIcon $ICON_QUEUE_MODEL $queuePointer
+            read $iconX $ICON_QUEUE_X $queuePointer
+            read $iconY $ICON_QUEUE_Y $queuePointer
+            read $taskProgress $COMM_CELL $COMM_ICON_TASK_PROGRESS
+            call ReadScreenValues
+            op div $totalExec @ipt 5
+            op add $totalExec $totalExec 18
+            call ReadIcon
+            RenderLoop:
+                jump Exit equal $queuePointer $queueCount
+                jump TaskRender equal $objTask $OBJ_TASK_RENDER
+                TaskCache:
+                    jump CacheNotComplete notEqual $taskProgress $vertCount
+                        set $objTask $OBJ_TASK_RENDER
+                        write $objTask $COMM_CELL $COMM_ICON_CURRENT_TASK
+                        set $taskProgress 0
+                        op add $totalExec $totalExec 5
+                        jump RenderLoopEnd always
+                    CacheNotComplete:
+                    read vertX $objVertX $taskProgress
+                    read vertY $objVertY $taskProgress
+                    op mul lx vertX 0.02
+                    op mul ly vertY 0.02
+                    op add lx lx $iconX
+                    op add ly ly $iconY
+                    op mul lx lx $camH
+                    op add lx lx $camX
+                    op mul ly ly $camH
+                    op add ly ly $camY
+                    write lx $OBJ_CACHE_X $taskProgress
+                    write ly $OBJ_CACHE_Y $taskProgress
+                    op add $taskProgress $taskProgress 1
+                    op add $totalExec $totalExec 15
+                jump RenderLoopEnd always
+                TaskRender:
+                    jump RenderNotComplete notEqual $taskProgress $faceCount
+                        op add $queuePointer $queuePointer 1
+                        read $selectedIcon $ICON_QUEUE_MODEL $queuePointer
+                        read $iconX $ICON_QUEUE_X $queuePointer
+                        read $iconY $ICON_QUEUE_Y $queuePointer
+                        call ReadIcon
+                        set $objTask $OBJ_TASK_ROTATE
+                        write $objTask $COMM_CELL $COMM_ICON_CURRENT_TASK
+                        set $taskProgress 0
+                        op add $totalExec $totalExec 10
+                        jump RenderLoopEnd always
+                    RenderNotComplete:
+                    read face0 $objFace0 $taskProgress
+                    read face1 $objFace1 $taskProgress
+                    read face2 $objFace2 $taskProgress
+                    read face3 $objFace3 $taskProgress
+                    read x0 $OBJ_CACHE_X face0
+                    read x1 $OBJ_CACHE_X face1
+                    read x2 $OBJ_CACHE_X face2
+                    read x3 $OBJ_CACHE_X face3
+                    read y0 $OBJ_CACHE_Y face0
+                    read y1 $OBJ_CACHE_Y face1
+                    read y2 $OBJ_CACHE_Y face2
+                    read y3 $OBJ_CACHE_Y face3
+                    setmarker posi $markerID 0 x0 y0
+                    setmarker posi $markerID 1 x1 y1
+                    setmarker posi $markerID 2 x2 y2
+                    setmarker posi $markerID 3 x3 y3
+                    setmarker uvi $markerID 0 0 0
+                    setmarker uvi $markerID 1 0 1
+                    setmarker uvi $markerID 2 1 1
+                    setmarker uvi $markerID 3 1 0
+                    setmarker drawLayer $markerID 201
+                    read materialIndex $objFaceMat $taskProgress
+                    call GetMaterial material materialIndex
+                    setmarker texture $markerID false material
+                    setmarker world $markerID true
+                    op add $markerID $markerID 1
+                    op add $totalExec $totalExec 26
+                    NextQuad:
+                    op add $taskProgress $taskProgress 1
+            RenderLoopEnd:
+            jump RenderLoop lessThan $totalExec @ipt
+            Exit:
+            write $markerID $COMM_CELL $COMM_MARKER_ID
+            write $taskProgress $COMM_CELL $COMM_ICON_TASK_PROGRESS
+            write $queuePointer $COMM_CELL $COMM_ICON_QUEUE_RENDER_POINTER
+        jump Loop always
+    end
+    end
+end
+
+defmac ClearMarkers
+    pop div resetProcCount 4000 190
+    pop ceil resetProcCount resetProcCount
+    for range _ resetProcCount
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read $markerID $COMM_CELL $COMM_MARKER_ID
+            set count 0
+            ClearLoop:
+                setmarker world $markerID false
+            op add count count 1
+            op add $markerID $markerID 1
+            jump Exit greaterThanEq $markerID 4000
+            jump ClearLoop lessThan count 190
+            Exit:
+            write $markerID $COMM_CELL $COMM_MARKER_ID
+        jump Loop always
+    end
+    end
+end

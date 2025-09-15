@@ -1,0 +1,35 @@
+terrain system:
+    reduce terrain height cost somehow:
+        idk how to make terrain like layered noise without layering noise
+    rom defined terrain layers:
+        each possible texture layer from 0 to whatever the max block ID is are written directly in a processor
+        faster than if else chains, and modular
+    biomes:
+        different biomes, each with their own texture rom, props, and terrain scale properties (these should blend ideally)
+
+UI:
+    Inventory:
+        The gui itself
+        Item slots:
+            including a count display if count > 1
+    Crafting:
+        idk how, but it's needed
+
+Subframe the object handler:
+    I'm really just being lazy here, this should have happened as soon as i made it
+
+Held Item Rendering:
+    A custom model for each item when in hand
+    Pre-sorted (or entirely pre-computed?) and rendered just under the UI
+
+Content:
+    Items:
+        Resources:
+            props and enemies give resources
+        Tools
+        Weapons
+        Equipment
+    Enemies
+    Structures
+    Props:
+        more of them

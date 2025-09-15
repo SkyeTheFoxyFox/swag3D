@@ -1,0 +1,137 @@
+
+#settings
+pset $MOUSE_SENSITIVITY 200
+pset $FOV 60
+
+#schem
+defmac Schem
+    call LogInfo "Creating schem"
+    block $COMM_CELL @world-cell
+    block $MATRIX @world-cell
+    block $RENDER_STACK_X @world-cell
+    block $RENDER_STACK_Y @world-cell
+    block $RENDER_STACK_SIZE @world-cell
+    block $OBJ_CACHE_X @world-cell
+    block $OBJ_CACHE_Y @world-cell
+    block $OBJ_CACHE_Z @world-cell
+    block $OBJ_QUEUE_MODEL @world-cell
+    block $OBJ_QUEUE_X @world-cell
+    block $OBJ_QUEUE_Y @world-cell
+    block $OBJ_QUEUE_Z @world-cell
+    block $OBJ_QUEUE_ROT @world-cell
+    block $OBJ_QUEUE_SCALE @world-cell
+    block $ICON_QUEUE_MODEL @world-cell
+    block $ICON_QUEUE_X @world-cell
+    block $ICON_QUEUE_Y @world-cell
+    block $PROP_STATUS @world-cell
+    block $INV_TYPE @world-cell
+    block $INV_COUNT @world-cell
+
+    block $OBJECT_MALLOC_CELL @world-cell
+    block $OBJECT_X @world-cell
+    block $OBJECT_Y @world-cell
+    block $OBJECT_Z @world-cell
+    block $OBJECT_ROTATION @world-cell
+    block $OBJECT_MODEL @world-cell
+    block $OBJECT_SIZE @world-cell
+    block $OBJECT_TYPE @world-cell
+    block $OBJECT_FORWARD_POINTER @world-cell
+    block $OBJECT_BACKWARD_POINTER @world-cell
+    block $OBJECT_DATA0 @world-cell
+    block $OBJECT_DATA1 @world-cell
+    block $OBJECT_DATA2 @world-cell
+    block $OBJECT_DATA3 @world-cell
+    block $OBJECT_DATA4 @world-cell
+    block $OBJECT_DATA5 @world-cell
+    block $OBJECT_DATA6 @world-cell
+    block $OBJECT_DATA7 @world-cell
+    block $OBJECT_DATA8 @world-cell
+    block $OBJECT_DATA9 @world-cell
+end
+
+#player properties
+pset $PLAYER_REACH_DISTANCE 5
+pset $PROP_RESPAWN_TIME 60
+
+#background colors
+pset $TOP_R 0.18
+pset $TOP_G 0.631
+pset $TOP_B 1
+pset $BOTTOM_R 0.839
+pset $BOTTOM_G 0.925
+pset $BOTTOM_B 1
+
+#processor counts
+pset $RENDER_PROC_COUNT 600
+pset $OBJ_PROC_COUNT 300
+pset $ICON_PROC_COUNT 20
+
+#tile renderer
+pset $RENDER_DISTANCE 512
+pset $MINIMUM_TILE_SIZE 1
+
+#prop renderer
+pset $propSpacing 20
+pset $propRadius 5
+
+#comm cell indexes
+pset $COMM_PLAYER_X 0
+pset $COMM_PLAYER_Y 1
+pset $COMM_PLAYER_Z 2
+pset $COMM_PLAYER_PITCH 3
+pset $COMM_MARKER_ID 4
+pset $COMM_RENDER_STACK_POINTER 5
+pset $COMM_OBJ_QUEUE_POINTER 6
+pset $COMM_OBJ_QUEUE_RENDER_POINTER 7
+pset $COMM_OBJ_CURRENT_TASK 8
+pset $COMM_OBJ_TASK_PROGRESS 9
+pset $COMM_PROP_PROGRESS 10
+pset $COMM_CAM_X 11
+pset $COMM_CAM_Y 12
+pset $COMM_CAM_W 13
+pset $COMM_CAM_H 14
+pset $COMM_INTERACT 15
+pset $COMM_SPECIAL 16
+pset $COMM_GAMEPLAY_STATE 17
+pset $COMM_HOTBAR_SELECTED 18
+pset $COMM_ICON_QUEUE_POINTER 19
+pset $COMM_ICON_QUEUE_RENDER_POINTER 20
+pset $COMM_ICON_CURRENT_TASK 21
+pset $COMM_ICON_TASK_PROGRESS 22
+pset $COMM_FIRST_OBJECT 23
+pset $COMM_LAST_OBJECT 24
+pset $COMM_OBJECT_COUNT 25
+
+#obj render states
+pset $OBJ_TASK_ROTATE 0
+pset $OBJ_TASK_RENDER 1
+
+#gameplay states
+pset $GP_GAMEPLAY 0 #general gameplay state, allows movement, and shows the hotbar
+pset $GP_INVENTORY 1 #inventory state, shows the inventory
+
+#item IDs
+pset $ITEM_NONE 0
+pset $ITEM_AXE 1
+pset $ITEM_GUN 2
+
+#predefined markers
+pset $MARKER_BACKGROUND 9000
+pset $MARKER_CROSSHAIR 10001
+pset $MARKER_INV_BUTTON_ICON 10002
+# 10002-10010
+pset $MARKER_HOTBAR 11002
+# 10011 10019
+pset $MARKER_INV_BUTTON 11011 
+# 10020 10028
+pset $MARKER_HOTBAR_SELECTED 11020 
+
+#computed values
+pop div $HALF_FOV $FOV 2
+pop mul $RENDER_SIZE $RENDER_DISTANCE 2
+pop pow $RENDER_AREA $RENDER_SIZE 2
+pop div $RENDER_STEP $RENDER_DISTANCE 4
+pop div $halfPropSpacing $propSpacing 2
+pop mul $propDiameter $propRadius 2
+pop add $propDiameter $propDiameter 1
+pop pow $propTotal $propDiameter 2

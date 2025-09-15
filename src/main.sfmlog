@@ -1,0 +1,383 @@
+import std/logging.sfmlib
+call SetLogging "info"
+call LogInfo "Begin build"
+
+call LogInfo "Begin imports"
+import render.sfmlib
+import constants.sfmlog
+import malloc.sfmlib
+
+import matrix.sfmlog
+
+import ui.sfmlog
+import terrain.sfmlog
+import items.sfmlog
+import props.sfmlog
+import objects.sfmlog
+import render_stuff.sfmlog
+call LogInfo "Finished imports"
+
+pset $PROCESSOR_TYPE @world-processor
+
+defmac Lerp out in0 in1 t
+    op sub out in1 in0
+    op mul out t out
+    op add out in0 out
+end
+
+call Schem
+
+#load models
+call InitObj $objTree "../models/tree.obj"
+call InitObj $objSnowRock "../models/snow_rock.obj"
+call InitObj $objSandCastle "../models/sand_castle.obj"
+call InitObj $objTube "../models/tube.obj"
+call InitObj $iconDebug "../models/icons/debug.obj"
+call InitObj $iconHammer "../models/icons/hammer.obj"
+call CacheMaterials
+
+#init
+proc
+    setrate 1000
+    write -1 $COMM_CELL $COMM_FIRST_OBJECT
+    write -1 $COMM_CELL $COMM_LAST_OBJECT
+    call MallocInit $OBJECT_MALLOC $OBJECT_MALLOC_CELL 511
+    set i 0
+    ResetLoop:
+        setmarker remove i
+        makemarker quad i 0 0 false
+        setmarker uvi i 0 0 0
+        setmarker uvi i 1 0 1
+        setmarker uvi i 2 1 1
+        setmarker uvi i 3 1 0
+        setmarker world i false
+    op add i i 1
+    jump ResetLoop lessThan i 10000
+    stop
+end
+
+defmac GetPlayerInput inputMove inputStrafe inputYaw inputPitch inputInteract inputSpecial cursorX cursorY shooting shootDown shootUp unit
+    set inputSpecial false
+    jump Same equal @clientUnit oldUnit
+        set inputSpecial true
+        set pressV 2
+    Same:
+    jump SkipMovement greaterThan pressV 0
+        sensor velX unit @velocityX
+        sensor velY unit @velocityY
+        sensor shooting unit @shooting
+        sensor shootX unit @shootX
+        sensor shootY unit @shootY
+        op sub cursorX shootX $camX
+        op div cursorX cursorX $camH
+        op sub cursorY shootY $camY
+        op div cursorY cursorY $camH
+
+        op notEqual inputMove velY 0
+        op abs absVelY velY
+        op div signVelY velY absVelY
+        op mul inputMove inputMove signVelY
+
+        op notEqual inputStrafe velX 0
+        op abs absVelX velX
+        op div signVelX velX absVelX
+        op mul inputStrafe inputStrafe signVelX
+        
+        op greaterThan shootDown shooting oldShooting
+        jump NotFirstShoot notEqual shootDown true
+            set firstShootX shootX
+            set firstShootY shootY
+            set firstShootTime @time
+            set maxShootDist 0
+        NotFirstShoot:
+
+        op sub shootDifX firstShootX shootX
+        op sub shootDifY firstShootY shootY
+        op len shootDist shootDifX shootDifY
+        op max maxShootDist maxShootDist shootDist
+
+        set inputInteract false
+        op lessThan shootUp shooting oldShooting
+        jump NotLastShoot equal shootUp false
+            op sub timeDif @time firstShootTime
+            jump NotLastShoot greaterThan timeDif 500
+            op div correctedShootDist maxShootDist $camH
+            jump NotLastShoot greaterThan correctedShootDist 0.05
+            set inputInteract true
+        NotLastShoot:
+
+        jump NotShooting equal shooting false
+            op sub inputYaw shootX oldShootX
+            op div inputYaw inputYaw $camH
+            op sub inputPitch shootY oldShootY
+            op div inputPitch inputPitch $camH
+        jump DoneShooting always
+        NotShooting:
+            set inputYaw 0
+            set inputPitch 0
+        DoneShooting:
+        set oldShootX shootX
+        set oldShootY shootY
+        set oldShooting shooting
+    jump NoSkipMovement always
+    SkipMovement:
+        set inputMove 0
+        set inputStrafe 0
+        set inputYaw 0
+        set inputPitch 0
+    NoSkipMovement:
+
+    op sub pressV pressV 1
+    set oldUnit @clientUnit
+
+    setprop @x unit 5
+    setprop @y unit 5
+    setprop @velocityX unit 0
+    setprop @velocityY unit 0
+end
+
+defmac StateInit state
+    op add @counter @counter state
+    
+    jump StateGameplay always
+    jump StateInventory always
+    
+    StateGameplay:
+        setmarker world $MARKER_CROSSHAIR true
+        setmarker world $MARKER_INV_BUTTON_ICON true
+        for range i 9
+            pop add i i $MARKER_HOTBAR
+            setmarker world i true
+        end
+        for range i 9
+            pop add i i $MARKER_INV_BUTTON
+            setmarker world i true
+        end
+        for range i 9
+            pop add i i $MARKER_HOTBAR_SELECTED
+            setmarker world i true
+        end
+    jump EndState always
+    StateInventory:
+
+    EndState:
+end
+
+defmac StateEnd state
+    op add @counter @counter state
+    
+    jump StateGameplay always
+    jump StateInventory always
+    
+    StateGameplay:
+        setmarker world $MARKER_CROSSHAIR false
+        setmarker world $MARKER_INV_BUTTON_ICON false
+        for range i 9
+            pop add i i $MARKER_HOTBAR
+            setmarker world i false
+        end
+        for range i 9
+            pop add i i $MARKER_INV_BUTTON
+            setmarker world i true
+        end
+        for range i 9
+            pop add i i $MARKER_HOTBAR_SELECTED
+            setmarker world i true
+        end
+    jump EndState always
+    StateInventory:
+
+    EndState:
+end
+
+defmac SetState state
+    set $nextGPState state
+    jump $GPSwitchState always
+end
+
+#handle player inputs
+proc
+    setrate 1000
+    set playerPitch -90
+    set $nextGPState $GP_GAMEPLAY
+    $GPSwitchState:
+    call StateEnd gameplayState
+    set gameplayState $nextGPState
+    call StateInit gameplayState
+    write gameplayState $COMM_CELL $COMM_GAMEPLAY_STATE
+    Loop:
+        wait 1e-4
+        call ComputeScreenValues @clientUnit
+        call WriteScreenValues
+        call GetPlayerInput moveStep moveStrafe moveYaw movePitch pressInteract pressSpecial cursorX cursorY click clickDown clickUp @clientUnit
+
+        op add @counter @counter gameplayState
+        jump StateGameplay always
+        jump StateInventory always
+
+        StateGameplay:
+            #check if over hotbar on click
+            jump NoCheckOverGPUI equal click false
+            jump NoCheckOverGPUI equal clickDown false
+            call CheckArea overUI cursorX cursorY -0.325 -0.5 0.325 -0.44
+            NoCheckOverGPUI:
+            jump NoRotate equal overUI true
+                write pressInteract $COMM_CELL $COMM_INTERACT
+                #move camera
+                op mul moveYaw moveYaw $MOUSE_SENSITIVITY
+                op mul movePitch movePitch $MOUSE_SENSITIVITY
+                op sub playerYaw playerYaw moveYaw
+                op sub playerPitch playerPitch movePitch
+                jump GPOverUI equal click true
+            NoRotate:
+                #check if hovering over inv button
+                call CheckArea overInvButton cursorX cursorY 0.27 -0.5 0.325 -0.44
+                jump NotOverInvButton equal overInvButton false
+                    for range i 9
+                        pop add i i $MARKER_INV_BUTTON
+                        setmarker texture i false "button-edge-over-3"
+                    end
+                jump OverInvButton always
+                NotOverInvButton:
+                    for range i 9
+                        pop add i i $MARKER_INV_BUTTON
+                        setmarker texture i false "button-edge-3"
+                    end
+                OverInvButton:
+
+                jump NoSelectInv equal clickDown false
+                    jump NoSelectInv greaterThan cursorX 0.27
+                    op sub slot cursorX -0.325
+                    op idiv slot slot 0.0595
+                    write slot $COMM_CELL $COMM_HOTBAR_SELECTED
+                NoSelectInv:
+            GPOverUI:
+
+            #move player
+            op sin sinpa playerYaw
+            op cos cospa playerYaw
+            op mul moveStep moveStep 0.1
+            op mul moveStrafe moveStrafe 0.1
+            op mul moveStepX sinpa moveStep
+            op mul moveStepY cospa moveStep
+            op mul moveStrafeX cospa moveStrafe
+            op mul moveStrafeY sinpa moveStrafe
+            op mul moveStepX moveStepX -1
+            op add $PLAYER_X $PLAYER_X moveStepX
+            op add $PLAYER_Y $PLAYER_Y moveStepY
+            op add $PLAYER_X $PLAYER_X moveStrafeX
+            op add $PLAYER_Y $PLAYER_Y moveStrafeY
+
+            #get player z
+            call GetTerrainHeight $PLAYER_Z $PLAYER_X $PLAYER_Y
+            op sub $PLAYER_Z $PLAYER_Z 1.5
+
+            #write values
+            write pressSpecial $COMM_CELL $COMM_SPECIAL
+            write $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+            write $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+            write $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            write playerPitch $COMM_CELL $COMM_PLAYER_PITCH
+
+        jump StateCheckEnd always
+        StateInventory:
+
+        StateCheckEnd:
+        
+        call EvalRotMatrix playerPitch 0 playerYaw
+        call WriteRotMatrix
+
+    jump Loop always
+end
+
+defmac DrawBackground 
+    read playerPitch $COMM_CELL $COMM_PLAYER_PITCH
+    op sub screenLeft $camX $halfW
+    op add screenRight $camX $halfW
+    op sub screenBottom $camY $halfH
+    op add screenTop $camY $halfH
+
+    setmarker posi $MARKER_BACKGROUND 0 screenLeft screenBottom
+    setmarker posi $MARKER_BACKGROUND 1 screenRight screenBottom
+    setmarker posi $MARKER_BACKGROUND 2 screenRight screenTop
+    setmarker posi $MARKER_BACKGROUND 3 screenLeft screenTop
+
+    op sub topAngle playerPitch $HALF_FOV
+    op add topAngle topAngle 180
+    op add bottomAngle playerPitch $HALF_FOV
+    op add bottomAngle bottomAngle 180
+    op cos topColor topAngle
+    op add topColor topColor 1
+    op div topColor topColor 2
+
+    call Lerp r $BOTTOM_R $TOP_R topColor
+    call Lerp g $BOTTOM_G $TOP_G topColor
+    call Lerp b $BOTTOM_B $TOP_B topColor
+
+    packcolor topColor r g b 1
+
+    op cos bottomColor bottomAngle
+    op add bottomColor bottomColor 1
+    op div bottomColor bottomColor 2
+
+    call Lerp r $BOTTOM_R $TOP_R bottomColor
+    call Lerp g $BOTTOM_G $TOP_G bottomColor
+    call Lerp b $BOTTOM_B $TOP_B bottomColor
+
+    packcolor bottomColor r g b 1
+
+    setmarker colori $MARKER_BACKGROUND 0 bottomColor
+    setmarker colori $MARKER_BACKGROUND 1 bottomColor
+    setmarker colori $MARKER_BACKGROUND 2 topColor
+    setmarker colori $MARKER_BACKGROUND 3 topColor
+
+    setmarker world $MARKER_BACKGROUND true
+end
+
+#init frame
+proc
+    setrate 1000
+    write $ITEM_AXE $INV_TYPE 0
+    write $ITEM_GUN $INV_TYPE 1
+    Loop:
+        wait 1e-4
+
+        read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+        read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+
+        call ReadScreenValues
+
+        write 0 $COMM_CELL $COMM_MARKER_ID
+
+        op sub renderStartX $PLAYER_X $RENDER_DISTANCE
+        op idiv renderStartX renderStartX $RENDER_STEP
+        op mul renderStartX renderStartX $RENDER_STEP
+        op sub renderStartY $PLAYER_Y $RENDER_DISTANCE
+        op idiv renderStartY renderStartY $RENDER_STEP
+        op mul renderStartY renderStartY $RENDER_STEP
+
+        write renderStartX $RENDER_STACK_X 0
+        write renderStartY $RENDER_STACK_Y 0
+
+        write $RENDER_SIZE $RENDER_STACK_SIZE 0
+        write 0 $COMM_CELL $COMM_RENDER_STACK_POINTER
+
+        write 0 $COMM_CELL $COMM_OBJ_QUEUE_POINTER
+        write 0 $COMM_CELL $COMM_PROP_PROGRESS
+        write 0 $COMM_CELL $COMM_ICON_QUEUE_POINTER
+
+        call DrawBackground
+    jump Loop always
+end
+
+call RenderUI
+
+call UpdateItems
+call UpdateObjects
+call RenderProps
+call RenderTerrain
+call RenderObjs
+call RenderIcons
+call ClearMarkers
+
+call LogInfo "Finished building"

@@ -1,0 +1,93 @@
+defmac GetPropValues x y scale rot index ix iy
+    op noise xOffset x y
+    op noise yOffset y x
+    op noise scale xOffset yOffset
+    op noise rot yOffset xOffset
+    op add rot rot 1
+    op mul rot rot 1000000
+    op mod rot rot 360
+    op add scale scale 1.25
+    op mul scale scale 0.5
+    op add xOffset xOffset 1
+    op add yOffset yOffset 1
+    op mul xOffset xOffset $halfPropSpacing
+    op mul yOffset yOffset $halfPropSpacing
+    op add x x xOffset
+    op add y y yOffset
+    op noise index x y
+    op add index index 1
+    op mul index index 1000000
+    op floor index index
+    op mod index index 512
+    op add $totalExec $totalExec 24
+end
+
+defmac GetPropType type x y z
+    op noise propMod y z
+    op add propMod propMod 1
+    op mul propMod propMod 1000000
+    op floor propMod propMod
+    jump Sand greaterThan z -1
+    jump Grass greaterThan z -10
+    Snow:
+        set type $objSnowRock
+        jump EndCase always
+    Grass:
+        op mod propMod propMod 2
+        op mul propMod propMod 2
+        op add $totalExec $totalExec 4
+        op add @counter @counter propMod
+        set type $objTree
+        jump EndCase always
+        set type $objTube
+        jump EndCase always
+    Sand:
+        set type $objSandCastle
+    EndCase:
+    op add $totalExec $totalExec 9
+end
+
+defmac RenderProps
+    for range _ 12
+        proc
+            setrate 1000
+            Loop:
+                wait 1e-4
+                read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+                read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+                read $propProgress $COMM_CELL $COMM_PROP_PROGRESS
+                op idiv middleX $PLAYER_X $propSpacing
+                op idiv middleY $PLAYER_Y $propSpacing
+                op mul middleX middleX $propSpacing
+                op mul middleY middleY $propSpacing
+                pop mul propStartOffset $propRadius $propSpacing
+                op sub startX middleX propStartOffset
+                op sub startY middleY propStartOffset
+                op div $totalExec @ipt 10
+                op add $totalExec $totalExec 13
+                PropLoop:
+                    jump Exit equal $propProgress $propTotal
+                    op mod x $propProgress $propDiameter
+                    op idiv y $propProgress $propDiameter
+                    op mul x x $propSpacing
+                    op mul y y $propSpacing
+                    op add x x startX
+                    op add y y startY
+                    call GetPropValues x y scale rot index x y
+                    read renderTime $PROP_STATUS index
+                    op add $totalExec $totalExec 10
+                    jump NoRender lessThan @second renderTime
+                    call GetTerrainHeight z x y
+                    jump NoRender equal z 0
+                        call GetPropType type x y z
+                        call QueueModel type x y z rot scale
+                        op add $totalExec $totalExec 11
+                    NoRender:
+                    op add $propProgress $propProgress 1
+                jump PropLoop lessThan $totalExec @ipt
+                Exit:
+                write $propProgress $COMM_CELL $COMM_PROP_PROGRESS
+            jump Loop always
+        end
+    end
+end

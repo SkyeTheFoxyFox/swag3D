@@ -1,0 +1,97 @@
+defmac HandleAxe
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+            read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+            read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            read $PLAYER_INTERACT $COMM_CELL $COMM_INTERACT
+            jump NoInteract notEqual $PLAYER_INTERACT true
+            read gameplayState $COMM_CELL $COMM_GAMEPLAY_STATE
+            jump NoInteract notEqual gameplayState $GP_GAMEPLAY
+            read selectedSlot $COMM_CELL $COMM_HOTBAR_SELECTED
+            read selectedItem $INV_TYPE selectedSlot
+            jump NoInteract notEqual selectedItem $ITEM_AXE
+                call ReadRotMatrix
+                call ReadScreenValues
+                set x $PLAYER_X
+                set y $PLAYER_Y
+                set z $PLAYER_Z
+                set reach 0
+                call ApplyInvRotMatrixOrigin 0 0 0.25 dx dy dz
+                Step:
+                op add reach reach 0.25
+                op add x x dx
+                op add y y dy
+                op add z z dz
+                op idiv px x $propSpacing
+                op idiv py y $propSpacing
+                op mul px px $propSpacing
+                op mul py py $propSpacing
+                call GetPropValues px py scale _ index px py
+                read renderTime $PROP_STATUS index
+                jump NoProp lessThan @second renderTime
+                    call GetTerrainHeight pz px py
+                    jump NoProp equal pz 0
+                    op sub distx x px
+                    op sub disty y py
+                    op sub distz z pz
+                    op len dist distx disty
+                    op len dist dist distz
+                    jump NoProp greaterThan dist scale
+                    op add propTime @second $PROP_RESPAWN_TIME
+                    write propTime $PROP_STATUS index
+
+                    #create item
+                    op sub itemZ pz 0.5 
+                    call GetPropType itemModel px py pz
+                    call CreateObject item px py itemZ 0 itemModel 0.2 $OBJECT_ITEM
+                    write itemZ $OBJECT_DATA0 item
+                    write 0 $OBJECT_DATA1 item
+
+                    jump End always
+                NoProp:
+                jump Step lessThan reach $PLAYER_REACH_DISTANCE
+                End:
+            NoInteract:
+        jump Loop always
+    end
+end
+
+defmac HandleGun
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+            read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+            read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            read $PLAYER_INTERACT $COMM_CELL $COMM_INTERACT
+            jump NoInteract notEqual $PLAYER_INTERACT true
+            read gameplayState $COMM_CELL $COMM_GAMEPLAY_STATE
+            jump NoInteract notEqual gameplayState $GP_GAMEPLAY
+            read selectedSlot $COMM_CELL $COMM_HOTBAR_SELECTED
+            read selectedItem $INV_TYPE selectedSlot
+            jump NoInteract notEqual selectedItem $ITEM_GUN
+                call ReadRotMatrix
+                call ReadScreenValues
+                call ApplyInvRotMatrixOrigin 0 0 0.25 dx dy dz
+                set x $PLAYER_X
+                set y $PLAYER_Y
+                set z $PLAYER_Z
+                call CreateObject object x y z 0 $objTree 0.2 $OBJECT_PROJECTILE
+                write 240 $OBJECT_DATA0 object
+                write dx $OBJECT_DATA1 object
+                write dy $OBJECT_DATA2 object
+                write dz $OBJECT_DATA3 object
+            NoInteract:
+        jump Loop always
+    end
+end
+
+defmac UpdateItems
+    call HandleAxe
+    call HandleGun
+end
+

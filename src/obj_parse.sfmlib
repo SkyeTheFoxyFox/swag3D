@@ -1,0 +1,77 @@
+import std/logging.sfmlib
+
+defmac ParseOBJ out path
+    file open objFile path
+    file read data objFile
+    file close objFile
+    strop rematchall lines data "[^\n]+"
+
+    pset selectedMaterial null
+
+    list from vertexPos
+    list from vertexNorm
+    list from vertexUV
+    list from faces
+
+    for list line lines
+        strop cat msg "Parsing line '" line "'" 
+        mac LogDebug msg
+        strop rematch keyword line "\S+"
+        strop charat firstChar keyword 0
+        if equal firstChar "#"
+        elif equal keyword "v"
+            mac _OBJParseNums vertex line
+            list get x vertex 0
+            list get y vertex 1
+            list get z vertex 2
+            table from vertex "x" x "y" y "z" z
+            list append vertexPos vertex
+        elif equal keyword "vn"
+            mac _OBJParseNums vertex line
+            list get x vertex 0
+            list get y vertex 1
+            list get z vertex 2
+            table from vertex "x" x "y" y "z" z
+            list append vertexNorm vertex
+        elif equal keyword "vt"
+            mac _OBJParseNums vertex line
+            list get u vertex 0
+            list get v vertex 1
+            table from vertex "u" u "v" v
+            list append vertexUV vertex
+        elif equal keyword "f"
+            mac _OBJParseFaces vertices line
+            table from face "vertices" vertices "material" selectedMaterial
+            list append faces face
+        elif equal keyword "usemtl"
+            strop regroups name line "usemtl (.*)"
+            list get name name 0
+            pset selectedMaterial name
+        end
+    end
+    table from out "vertexPositions" vertexPos "vertexNormals" vertexNorm "vertexUV" vertexUV "faces" faces
+end
+
+defmac _OBJParseNums out line
+    strop rematchall out line "-?[0-9]+(?:\.[0-9]+)?"
+    for enumerate index value out
+        strop num value value
+        list set out value index
+    end
+end
+
+defmac _OBJParseFaces out line
+    strop rematchall out line "[0-9]+(?:/[0-9]+){0,2}"
+    for enumerate index valueSet out
+        strop rematchall valueSet valueSet "[0-9]+"
+        for enumerate valueIndex value valueSet
+            strop num value value
+            list set valueSet value valueIndex
+        end
+        list get position valueSet 0
+        list get uv valueSet 1
+        list get normal valueSet 2
+        table from vertex "position" position "uv" uv "normal" normal
+        list set out vertex index
+    end
+end

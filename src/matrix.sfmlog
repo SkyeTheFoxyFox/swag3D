@@ -1,0 +1,130 @@
+
+defmac EvalRotMatrix alpha beta gamma
+    op sin sina alpha
+    op cos cosa alpha
+    op sin sinb beta
+    op cos cosb beta
+    op sin sing gamma
+    op cos cosg gamma
+
+    op mul cosasinb cosa sinb
+    op mul sinasinb sina sinb
+
+    op mul $rotation_matrix_0_0 cosb cosg
+
+    op mul temp cosa sing
+    op mul $rotation_matrix_1_0 sinasinb cosg
+    op sub $rotation_matrix_1_0 $rotation_matrix_1_0 temp
+
+    op mul temp sina sing
+    op mul $rotation_matrix_2_0 cosasinb cosg
+    op add $rotation_matrix_2_0 $rotation_matrix_2_0 temp
+
+    op mul $rotation_matrix_0_1 cosb sing
+
+    op mul temp cosa cosg
+    op mul $rotation_matrix_1_1 sinasinb sing
+    op add $rotation_matrix_1_1 $rotation_matrix_1_1 temp
+
+    op mul temp sina cosg
+    op mul $rotation_matrix_2_1 cosasinb sing
+    op sub $rotation_matrix_2_1 $rotation_matrix_2_1 temp
+
+    op mul $rotation_matrix_0_2 sinb -1
+
+    op mul $rotation_matrix_1_2 sina cosb
+
+    op mul $rotation_matrix_2_2 cosa cosb
+end
+
+defmac WriteRotMatrix
+    write $rotation_matrix_0_0 $MATRIX 0
+    write $rotation_matrix_1_0 $MATRIX 1
+    write $rotation_matrix_2_0 $MATRIX 2
+    write $rotation_matrix_0_1 $MATRIX 3
+    write $rotation_matrix_1_1 $MATRIX 4
+    write $rotation_matrix_2_1 $MATRIX 5
+    write $rotation_matrix_0_2 $MATRIX 6
+    write $rotation_matrix_1_2 $MATRIX 7
+    write $rotation_matrix_2_2 $MATRIX 8
+end
+
+defmac ReadRotMatrix
+    read $rotation_matrix_0_0 $MATRIX 0
+    read $rotation_matrix_1_0 $MATRIX 1
+    read $rotation_matrix_2_0 $MATRIX 2
+    read $rotation_matrix_0_1 $MATRIX 3
+    read $rotation_matrix_1_1 $MATRIX 4
+    read $rotation_matrix_2_1 $MATRIX 5
+    read $rotation_matrix_0_2 $MATRIX 6
+    read $rotation_matrix_1_2 $MATRIX 7
+    read $rotation_matrix_2_2 $MATRIX 8
+end
+
+defmac ApplyRotMatrix x y z ox oy oz px py pz
+    op sub tx x px
+    op sub ty y py
+    op sub tz z pz
+
+    op mul temp_x_0 $rotation_matrix_0_0 tx
+    op mul temp_x_1 $rotation_matrix_0_1 ty
+    op mul temp_x_2 $rotation_matrix_0_2 tz
+    op add ox temp_x_0 temp_x_1
+    op add ox ox temp_x_2
+
+    op mul temp_y_0 $rotation_matrix_1_0 tx
+    op mul temp_y_1 $rotation_matrix_1_1 ty
+    op mul temp_y_2 $rotation_matrix_1_2 tz
+    op add oy temp_y_0 temp_y_1
+    op add oy oy temp_y_2
+
+    op mul temp_z_0 $rotation_matrix_2_0 tx
+    op mul temp_z_1 $rotation_matrix_2_1 ty
+    op mul temp_z_2 $rotation_matrix_2_2 tz
+    op add oz temp_z_0 temp_z_1
+    op add oz oz temp_z_2
+
+    op add ox ox px
+    op add oy oy py
+    op add oz oz pz
+end
+
+defmac ApplyRotMatrixOrigin x y z ox oy oz
+    op mul temp_x_0 $rotation_matrix_0_0 x
+    op mul temp_x_1 $rotation_matrix_0_1 y
+    op mul temp_x_2 $rotation_matrix_0_2 z
+    op add ox temp_x_0 temp_x_1
+    op add ox ox temp_x_2
+
+    op mul temp_y_0 $rotation_matrix_1_0 x
+    op mul temp_y_1 $rotation_matrix_1_1 y
+    op mul temp_y_2 $rotation_matrix_1_2 z
+    op add oy temp_y_0 temp_y_1
+    op add oy oy temp_y_2
+
+    op mul temp_z_0 $rotation_matrix_2_0 x
+    op mul temp_z_1 $rotation_matrix_2_1 y
+    op mul temp_z_2 $rotation_matrix_2_2 z
+    op add oz temp_z_0 temp_z_1
+    op add oz oz temp_z_2
+end
+
+defmac ApplyInvRotMatrixOrigin x y z ox oy oz
+    op mul temp_x_0 $rotation_matrix_0_0 x
+    op mul temp_x_1 $rotation_matrix_1_0 y
+    op mul temp_x_2 $rotation_matrix_2_0 z
+    op add ox temp_x_0 temp_x_1
+    op add ox ox temp_x_2
+
+    op mul temp_y_0 $rotation_matrix_0_1 x
+    op mul temp_y_1 $rotation_matrix_1_1 y
+    op mul temp_y_2 $rotation_matrix_2_1 z
+    op add oy temp_y_0 temp_y_1
+    op add oy oy temp_y_2
+
+    op mul temp_z_0 $rotation_matrix_0_2 x
+    op mul temp_z_1 $rotation_matrix_1_2 y
+    op mul temp_z_2 $rotation_matrix_2_2 z
+    op add oz temp_z_0 temp_z_1
+    op add oz oz temp_z_2
+end

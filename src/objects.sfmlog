@@ -1,0 +1,130 @@
+pset $OBJECT_PROJECTILE 0
+pset $OBJECT_ITEM 1
+
+defmac CreateObject object x y z rotation model size type
+    call Malloc $OBJECT_MALLOC object
+    jump Fail equal object -1
+    write x $OBJECT_X object
+    write y $OBJECT_Y object
+    write z $OBJECT_Z object
+    write rotation $OBJECT_ROTATION object
+    write model $OBJECT_MODEL object
+    write size $OBJECT_SIZE object
+    write type $OBJECT_TYPE object
+
+    write -1 $OBJECT_FORWARD_POINTER object
+
+    read lastObject $COMM_CELL $COMM_LAST_OBJECT
+    jump NoObject equal lastObject -1
+        write object $OBJECT_FORWARD_POINTER lastObject
+        write lastObject $OBJECT_BACKWARD_POINTER object
+        write object $COMM_CELL $COMM_LAST_OBJECT
+    jump EndObject always
+    NoObject:
+        write object $COMM_CELL $COMM_FIRST_OBJECT
+        write object $COMM_CELL $COMM_LAST_OBJECT
+        write -1 $OBJECT_BACKWARD_POINTER object
+    EndObject:
+
+    read objectCount $COMM_CELL $COMM_OBJECT_COUNT
+    op add objectCount objectCount 1
+    write objectCount $COMM_CELL $COMM_OBJECT_COUNT
+
+    Fail:
+end
+
+defmac RemoveObject object
+    read forePtr $OBJECT_FORWARD_POINTER object
+    read backPtr $OBJECT_BACKWARD_POINTER object
+
+    write forePtr $OBJECT_FORWARD_POINTER backPtr
+    jump NotFirst notEqual backPtr -1
+        write forePtr $COMM_CELL $COMM_FIRST_OBJECT
+    NotFirst:
+
+    write backPtr $OBJECT_BACKWARD_POINTER forePtr
+    jump NotLast notEqual forePtr -1
+        write backPtr $COMM_CELL $COMM_LAST_OBJECT
+    NotLast:
+
+    read objectCount $COMM_CELL $COMM_OBJECT_COUNT
+    op sub objectCount objectCount 1
+    write objectCount $COMM_CELL $COMM_OBJECT_COUNT
+
+    call Free $OBJECT_MALLOC object
+end
+
+defmac UpdateObjectProjectile object x y z rot
+    read life $OBJECT_DATA0 object
+    read dx $OBJECT_DATA1 object
+    read dy $OBJECT_DATA2 object
+    read dz $OBJECT_DATA3 object
+
+    op add x x dx
+    op add y y dy
+    op add z z dz
+
+    op sub life life 1
+    jump NotDead greaterThan life 0
+        call RemoveObject object
+        jump End always
+    NotDead:
+
+    write x $OBJECT_X object
+    write y $OBJECT_Y object
+    write z $OBJECT_Z object
+    write life $OBJECT_DATA0 object
+    End:
+end
+
+defmac UpdateObjectItem object x y z rot
+    read itemZ $OBJECT_DATA0 object
+    read t $OBJECT_DATA1 object
+
+    op mul zOffset t 2
+    op sin zOffset zOffset
+    op mul zOffset zOffset 0.25
+    op add z itemZ zOffset
+    write z $OBJECT_Z object
+    write t $OBJECT_ROTATION object
+
+    op add t t 1
+    write t $OBJECT_DATA1 object
+end
+
+defmac UpdateObject object type x y z rot
+    op add @counter @counter type
+    jump Projectile always
+    jump Item always
+
+    Projectile:
+        call UpdateObjectProjectile object x y z rot
+    jump End always
+    Item:
+        call UpdateObjectItem object x y z rot
+    End:
+end
+
+defmac UpdateObjects
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read object $COMM_CELL $COMM_FIRST_OBJECT
+            jump NoUpdate equal object -1
+            ListLoop:
+                read x $OBJECT_X object
+                read y $OBJECT_Y object
+                read z $OBJECT_Z object
+                read rotation $OBJECT_ROTATION object
+                read model $OBJECT_MODEL object
+                read size $OBJECT_SIZE object
+                read type $OBJECT_TYPE object
+                call QueueModel model x y z rotation size
+                call UpdateObject object type x y z rotation
+                read object $OBJECT_FORWARD_POINTER object
+            jump ListLoop notEqual object -1
+            NoUpdate:
+        jump Loop always
+    end
+end

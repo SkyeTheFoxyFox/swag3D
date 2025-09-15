@@ -1,0 +1,100 @@
+defmac CheckArea result x y x1 y1 x2 y2
+    set result false
+    jump End lessThan x x1
+    jump End lessThan y y1
+    jump End greaterThan x x2
+    jump End greaterThan y y2
+    set result true
+    End:
+end
+
+defmac ItemIcon icon item
+    op mul jmp item 2
+    op add @counter @counter jmp
+        set icon null
+    jump ExitCase always
+        set icon $iconHammer
+    jump ExitCase always
+        set icon $iconDebug
+    ExitCase:
+end
+
+defmac RenderUI
+    proc
+    setrate 1000
+    #init crosshair
+    makemarker texture $MARKER_CROSSHAIR
+    setmarker autoscale $MARKER_CROSSHAIR true
+    setmarker texture $MARKER_CROSSHAIR false "status-blasted"
+    setmarker textureSize $MARKER_CROSSHAIR 1 1
+    setmarker drawLayer $MARKER_CROSSHAIR 200
+
+    makemarker texture $MARKER_INV_BUTTON_ICON
+    setmarker autoscale $MARKER_INV_BUTTON_ICON true
+    setmarker texture $MARKER_INV_BUTTON_ICON false "status-unmoving"
+    setmarker textureSize $MARKER_INV_BUTTON_ICON 1 1
+    setmarker drawLayer $MARKER_INV_BUTTON_ICON 200.2
+
+    for range i 9
+        pop add i i $MARKER_HOTBAR
+        makemarker quad i
+        setmarker drawLayer i 200
+    end
+    call InitNineSliceStatic $MARKER_HOTBAR 0.342 0.658 0.448 0.552 "button-edge-1"
+
+    for range i 9
+        pop add i i $MARKER_INV_BUTTON
+        makemarker quad i
+        setmarker drawLayer i 200.1
+    end
+    call InitNineSliceStatic $MARKER_INV_BUTTON 0.342 0.658 0.448 0.552 "button-edge-3"
+
+    for range i 9
+        pop add i i $MARKER_HOTBAR_SELECTED
+        makemarker quad i
+        setmarker drawLayer i 200.2
+    end
+    call InitNineSliceStatic $MARKER_HOTBAR_SELECTED 0.342 0.658 0.448 0.552 "button-red"
+
+    Loop:
+        wait 1e-4
+
+        read gameplayState $COMM_CELL $COMM_GAMEPLAY_STATE
+        read selectedSlot $COMM_CELL $COMM_HOTBAR_SELECTED
+        read $markerID $COMM_CELL $COMM_MARKER_ID
+        call ReadScreenValues
+
+        op add @counter @counter gameplayState
+        jump StateGameplay always
+        jump StateInventory always
+
+        StateGameplay:
+            setmarker pos $MARKER_CROSSHAIR $camX $camY
+            call MarkerUIPos $MARKER_INV_BUTTON_ICON 0.2975 -0.47
+            call RenderNineSliceStatic $MARKER_HOTBAR -0.325 -0.5 0.275 -0.44 0.05 0.342
+            call RenderNineSliceStatic $MARKER_INV_BUTTON 0.27 -0.5 0.325 -0.44 0.05 0.342
+            op mul selectedX selectedSlot 0.0595
+            op add selectedX selectedX -0.320
+            op add selectedXR selectedX 0.0545
+            call RenderNineSliceStatic $MARKER_HOTBAR_SELECTED selectedX -0.495 selectedXR -0.445 0.05 0.342
+            set mi 0
+            HotbarIconLoop:
+                op mul slot mi 0.0595
+                op add slot slot -0.293
+                read item $INV_TYPE mi
+                call ItemIcon icon item
+                jump HotbarNoDrawIcon strictEqual icon null
+                    call QueueIcon icon slot -0.470
+                HotbarNoDrawIcon:
+            op add mi mi 1
+            jump HotbarIconLoop lessThan mi 10
+        jump StateExit always
+        StateInventory:
+
+        StateExit:
+
+        write $markerID $COMM_CELL $COMM_MARKER_ID
+
+    jump Loop always
+    end
+end

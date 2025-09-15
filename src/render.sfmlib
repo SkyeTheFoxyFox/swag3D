@@ -1,0 +1,361 @@
+import obj_parse.sfmlib
+import std/logging.sfmlib
+
+defmac RenderQuadPoint id index x y z maxDepth depthSum NoDraw
+    mac ApplyRotMatrixOrigin x y z rotX rotY rotZ
+    op max maxDepth maxDepth rotZ
+    jump NoDraw lessThan rotZ -1
+    op max rotZ rotZ 0.01
+    mac ProjectPoint drawX drawY rotX rotY rotZ
+    mac ToScreenCoords drawX drawY drawX drawY
+    op add depthSum depthSum rotZ
+    setmarker posi id index drawX drawY
+end
+
+defmac RenderQuadPointTranslate id index x y z tx ty tz maxDepth depthSum NoDraw
+    op sub lx x tx
+    op sub ly y ty
+    op sub lz z tz
+    mac RenderQuadPoint id index lx ly lz maxDepth depthSum NoDraw
+end
+
+defmac RenderQuadTranslate id tx ty tz x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+    set maxDepth -1
+    set depthSum 0
+    mac RenderQuadPointTranslate id 0 x1 y1 z1 tx ty tz maxDepth depthSum NoDraw
+    mac RenderQuadPointTranslate id 1 x2 y2 z2 tx ty tz maxDepth depthSum NoDraw
+    mac RenderQuadPointTranslate id 2 x3 y3 z3 tx ty tz maxDepth depthSum NoDraw
+    mac RenderQuadPointTranslate id 3 x4 y4 z4 tx ty tz maxDepth depthSum NoDraw
+    jump NoDraw lessThan maxDepth 0
+    op div avgDepth depthSum 40
+    op sub drawLayer 200 avgDepth
+    setmarker drawLayer id drawLayer
+    setmarker world id true
+    setmarker uvi id 0 0 0
+    setmarker uvi id 1 0 1
+    setmarker uvi id 2 1 1
+    setmarker uvi id 3 1 0
+    jump End always
+    NoDraw:
+        setmarker world id false
+    End:
+end
+
+defmac RenderQuadTranslateTexture id tx ty tz x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4 texture
+    mac RenderQuadTranslate id tx ty tz x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+    setmarker texture id false texture
+end
+
+defmac RenderQuadStatic id x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+    set maxDepth -1
+    set depthSum 0
+    mac RenderQuadPoint id 0 x1 y1 z1 maxDepth depthSum NoDraw
+    mac RenderQuadPoint id 1 x2 y2 z2 maxDepth depthSum NoDraw
+    mac RenderQuadPoint id 2 x3 y3 z3 maxDepth depthSum NoDraw
+    mac RenderQuadPoint id 3 x4 y4 z4 maxDepth depthSum NoDraw
+    jump NoDraw lessThan maxDepth 0
+    op div avgDepth depthSum 40
+    op sub drawLayer 200 avgDepth
+    setmarker drawLayer id drawLayer
+    setmarker world id true
+    setmarker uvi id 0 0 0
+    setmarker uvi id 1 0 1
+    setmarker uvi id 2 1 1
+    setmarker uvi id 3 1 0
+    jump End always
+    NoDraw:
+        setmarker world id false
+    End:
+end
+
+defmac RenderQuadStaticTexture id x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4 texture
+    mac RenderQuadStatic id x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+    setmarker texture id false texture
+end
+
+pset $objPos 194
+pset $objCount 0
+list from $materials
+defmac InitObj obj path
+    strop cat msg "Loading model: '" path "'"
+    mac LogInfo msg
+    pop add $objCount $objCount 1
+    pset $INITOBJ_path path
+    proc
+        setrate 1000
+        mac ParseOBJ objData $INITOBJ_path
+        setblock block @world-cell 5 $objPos @sharded
+        getblock building meshData 5 $objPos
+        setblock block @world-cell 6 $objPos @sharded
+        getblock building xCell 6 $objPos
+        setblock block @world-cell 7 $objPos @sharded
+        getblock building yCell 7 $objPos
+        setblock block @world-cell 8 $objPos @sharded
+        getblock building zCell 8 $objPos
+        setblock block @world-cell 9 $objPos @sharded
+        getblock building faceCell0 9 $objPos
+        setblock block @world-cell 10 $objPos @sharded
+        getblock building faceCell1 10 $objPos
+        setblock block @world-cell 11 $objPos @sharded
+        getblock building faceCell2 11 $objPos
+        setblock block @world-cell 12 $objPos @sharded
+        getblock building faceCell3 12 $objPos
+        setblock block @world-cell 13 $objPos @sharded
+        getblock building faceCellMat 13 $objPos
+        pset $INITOBJ_obj $objPos
+        pop sub $objPos $objPos 1
+        table get vertices objData "vertexPositions"
+        list len vertexCount vertices
+        write vertexCount meshData 0
+        for enumerate index point vertices
+            table get x point "x"
+            table get y point "y"
+            table get z point "z"
+            write x xCell index
+            write y yCell index
+            write z zCell index
+        end
+        table get faces objData "faces"
+        list len faceCount faces
+        write faceCount meshData 1
+        for enumerate index face faces
+            table get points face "vertices"
+            list len pointCount points
+            if greaterThan pointCount 4
+                error "Expected quad or tri in model at '" path "', but found face with " pointCount " points"
+            end
+            list get p0 points 0
+            list get p1 points 1
+            list get p2 points 2
+            if equal pointCount 4
+                list get p3 points 3
+            else
+                list get p3 points 0
+            end
+            table get p0 p0 "position"
+            table get p1 p1 "position"
+            table get p2 p2 "position"
+            table get p3 p3 "position"
+            pop sub p0 p0 1
+            pop sub p1 p1 1
+            pop sub p2 p2 1
+            pop sub p3 p3 1
+            write p0 faceCell0 index
+            write p1 faceCell1 index
+            write p2 faceCell2 index
+            write p3 faceCell3 index
+            table get material face "material"
+            if in $materials material
+            else
+                list append $materials material
+            end
+            list index matIndex $materials material
+            write matIndex faceCellMat index
+        end
+        stop
+    end
+    pset obj $INITOBJ_obj
+end
+
+defmac CacheMaterials
+    proc $MATERIAL_CACHE
+        list from variableStrings "graphite-press" "multi-press" "silicon-smelter" "silicon-crucible" "kiln" "plastanium-compressor" "phase-weaver" "cryofluid-mixer" "pyratite-mixer" "blast-mixer" "melter" "separator" "disassembler" "spore-press" "pulverizer" "coal-centrifuge" "incinerator" "copper-wall" "copper-wall-large" "titanium-wall"
+        for enumerate index mat $materials
+            list get varName variableStrings index
+            strvar unscoped variable varName
+            set variable mat
+        end
+    end
+    mac LogInfo "Finished loading models"
+end
+
+defmac GetMaterial mat index
+    lookup block matIndex index
+    sensor matIndex matIndex @name
+    read mat $MATERIAL_CACHE matIndex
+end
+
+defmac QueueModel model x y z rot scale
+    read queuePointer $COMM_CELL $COMM_OBJ_QUEUE_POINTER
+    write model $OBJ_QUEUE_MODEL queuePointer
+    write x $OBJ_QUEUE_X queuePointer
+    write y $OBJ_QUEUE_Y queuePointer
+    write z $OBJ_QUEUE_Z queuePointer
+    write rot $OBJ_QUEUE_ROT queuePointer
+    write scale $OBJ_QUEUE_SCALE queuePointer
+    op add queuePointer queuePointer 1
+    write queuePointer $COMM_CELL $COMM_OBJ_QUEUE_POINTER
+end
+
+defmac QueueIcon model x y
+    read queuePointer $COMM_CELL $COMM_ICON_QUEUE_POINTER
+    write model $ICON_QUEUE_MODEL queuePointer
+    write x $ICON_QUEUE_X queuePointer
+    write y $ICON_QUEUE_Y queuePointer
+    op add queuePointer queuePointer 1
+    write queuePointer $COMM_CELL $COMM_ICON_QUEUE_POINTER
+end
+
+defmac SetFOV fov
+    op div screenHeight fov 2
+    op cos $cosFov screenHeight
+    op tan screenHeight screenHeight
+    op mul screenHeight screenHeight 2
+    op div $pixelsPerGameUnit 1 screenHeight
+end
+
+defmac ProjectPoint ox oy x y z
+     op div sizeMult $pixelsPerGameUnit z
+     op mul ox x sizeMult
+     op mul oy y sizeMult
+end
+
+defmac ComputeScreenValues player
+    sensor $camX player @cameraX
+    sensor $camY player @cameraY
+    sensor $camH player @cameraHeight
+    sensor $camW player @cameraWidth
+end
+
+defmac WriteScreenValues
+    write $camX $COMM_CELL $COMM_CAM_X
+    write $camY $COMM_CELL $COMM_CAM_Y
+    write $camH $COMM_CELL $COMM_CAM_W
+    write $camW $COMM_CELL $COMM_CAM_H
+end
+
+defmac ReadScreenValues
+    read $camX $COMM_CELL $COMM_CAM_X
+    read $camY $COMM_CELL $COMM_CAM_Y
+    read $camH $COMM_CELL $COMM_CAM_W
+    read $camW $COMM_CELL $COMM_CAM_H
+    op div $halfW $camW 2
+    op div $halfH $camH 2
+    op add $camU $camY $halfH
+    op sub $camD $camY $halfH
+    op sub $camL $camX $halfW
+    op add $camR $camX $halfW
+end
+
+defmac ToScreenCoords ox oy x y
+    op mul ox x $halfH
+    op mul oy y $halfH
+    op add ox ox $camX
+    op add oy oy $camY
+end
+
+defmac RenderNineSlice x1 y1 x2 y2 scale sliceX1 sliceX2 sliceY1 sliceY2 texture
+    op mul lx1 x1 $camH
+    op add lx1 lx1 $camX
+    op mul ly1 y1 $camH
+    op add ly1 ly1 $camY
+    op mul lx2 x2 $camH
+    op add lx2 lx2 $camX
+    op mul ly2 y2 $camH
+    op add ly2 ly2 $camY
+
+    op mul panelScale scale $camH
+    op mul panelSliceX1 sliceX1 panelScale
+
+    op add mx1 lx1 panelSliceX1
+    op add my1 ly1 panelSliceX1
+    op sub mx2 lx2 panelSliceX1
+    op sub my2 ly2 panelSliceX1
+
+    mac NineSliceSegment lx1 ly1 mx1 my1 0 0 sliceX1 sliceY1 texture
+    mac NineSliceSegment mx1 ly1 mx2 my1 sliceX1 0 sliceX2 sliceY1 texture
+    mac NineSliceSegment mx2 ly1 lx2 my1 sliceX2 0 1 sliceY1 texture
+
+    mac NineSliceSegment lx1 my1 mx1 my2 0 sliceY1 sliceX1 sliceY2 texture
+    mac NineSliceSegment mx1 my1 mx2 my2 sliceX1 sliceY1 sliceX2 sliceY2 texture
+    mac NineSliceSegment mx2 my1 lx2 my2 sliceX2 sliceY1 1 sliceY2 texture
+
+    mac NineSliceSegment lx1 my2 mx1 ly2 0 sliceY2 sliceX1 1 texture
+    mac NineSliceSegment mx1 my2 mx2 ly2 sliceX1 sliceY2 sliceX2 1 texture
+    mac NineSliceSegment mx2 my2 lx2 ly2 sliceX2 sliceY2 1 1 texture
+end
+
+defmac NineSliceSegment x1 y1 x2 y2 u1 v1 u2 v2 texture
+    setmarker posi $markerID 0 x1 y1
+    setmarker uvi $markerID 0 u1 v1
+    setmarker posi $markerID 1 x2 y1
+    setmarker uvi $markerID 1 u2 v1
+    setmarker posi $markerID 2 x2 y2
+    setmarker uvi $markerID 2 u2 v2
+    setmarker posi $markerID 3 x1 y2
+    setmarker uvi $markerID 3 u1 v2
+    setmarker texture $markerID false texture
+    op add $markerID $markerID 1
+end
+
+defmac InitNineSliceStatic markerID sliceX1 sliceX2 sliceY1 sliceY2 texture
+    set lmarkerID markerID
+    mac NineSliceSegmentInit lmarkerID 0 0 sliceX1 sliceY1 texture
+    mac NineSliceSegmentInit lmarkerID sliceX1 0 sliceX2 sliceY1 texture
+    mac NineSliceSegmentInit lmarkerID sliceX2 0 1 sliceY1 texture
+
+    mac NineSliceSegmentInit lmarkerID 0 sliceY1 sliceX1 sliceY2 texture
+    mac NineSliceSegmentInit lmarkerID sliceX1 sliceY1 sliceX2 sliceY2 texture
+    mac NineSliceSegmentInit lmarkerID sliceX2 sliceY1 1 sliceY2 texture
+
+    mac NineSliceSegmentInit lmarkerID 0 sliceY2 sliceX1 1 texture
+    mac NineSliceSegmentInit lmarkerID sliceX1 sliceY2 sliceX2 1 texture
+    mac NineSliceSegmentInit lmarkerID sliceX2 sliceY2 1 1 texture
+end
+
+defmac RenderNineSliceStatic markerID x1 y1 x2 y2 scale sliceX1
+    set lmarkerID markerID
+    op mul lx1 x1 $camH
+    op add lx1 lx1 $camX
+    op mul ly1 y1 $camH
+    op add ly1 ly1 $camY
+    op mul lx2 x2 $camH
+    op add lx2 lx2 $camX
+    op mul ly2 y2 $camH
+    op add ly2 ly2 $camY
+
+    op mul panelScale scale $camH
+    op mul panelSliceX1 sliceX1 panelScale
+
+    op add mx1 lx1 panelSliceX1
+    op add my1 ly1 panelSliceX1
+    op sub mx2 lx2 panelSliceX1
+    op sub my2 ly2 panelSliceX1
+
+    mac NineSliceSegmentStatic lmarkerID lx1 ly1 mx1 my1
+    mac NineSliceSegmentStatic lmarkerID mx1 ly1 mx2 my1
+    mac NineSliceSegmentStatic lmarkerID mx2 ly1 lx2 my1
+
+    mac NineSliceSegmentStatic lmarkerID lx1 my1 mx1 my2
+    mac NineSliceSegmentStatic lmarkerID mx1 my1 mx2 my2
+    mac NineSliceSegmentStatic lmarkerID mx2 my1 lx2 my2
+
+    mac NineSliceSegmentStatic lmarkerID lx1 my2 mx1 ly2
+    mac NineSliceSegmentStatic lmarkerID mx1 my2 mx2 ly2
+    mac NineSliceSegmentStatic lmarkerID mx2 my2 lx2 ly2
+end
+
+defmac NineSliceSegmentInit markerID u1 v1 u2 v2 texture
+    setmarker uvi markerID 0 u1 v1
+    setmarker uvi markerID 1 u2 v1
+    setmarker uvi markerID 2 u2 v2
+    setmarker uvi markerID 3 u1 v2
+    setmarker texture markerID false texture
+    op add markerID markerID 1
+end
+
+defmac NineSliceSegmentStatic markerID x1 y1 x2 y2
+    setmarker posi markerID 0 x1 y1
+    setmarker posi markerID 1 x2 y1
+    setmarker posi markerID 2 x2 y2
+    setmarker posi markerID 3 x1 y2
+    op add markerID markerID 1
+end
+
+defmac MarkerUIPos marker x y
+    op mul lx x $camH
+    op add lx lx $camX
+    op mul ly y $camH
+    op add ly ly $camY
+    setmarker pos marker lx ly
+end

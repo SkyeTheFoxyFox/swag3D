@@ -1,0 +1,175 @@
+
+defmac GetTerrainHeight height x y
+    mac Noise height 2 0.125 x y
+    mac Noise h 4 0.25 x y
+    op add height height h
+    mac Noise h 8 0.5 x y
+    op add height height h
+    mac Noise h 16 2 x y
+    op add height height h
+    mac Noise h 32 4 x y
+    op add height height h
+    mac Noise h 64 8 x y
+    op add height height h
+    mac Noise h 128 16 x y
+    op add height height h
+    op min height height 0
+    op add $totalExec $totalExec 36
+    #op mul lx x 10
+    #op sin height lx
+    #op sub height height 0.9
+    #op mul height height 10
+    #op min height height 0
+    #op add $totalExec $totalExec 6
+end
+
+defmac Noise out freq amp x y
+    op div lx x freq
+    op div ly y freq
+    op noise out lx ly
+    op mul out out amp
+end
+
+defmac RenderTile x y size failed
+    set maxDepth -1
+    set depthSum 0
+    set heightSum 0
+    set i 0
+    op add $totalExec $totalExec 11
+    Loop:
+        op add ti i 1
+        op idiv lx ti 2
+        op mod lx lx 2
+        op idiv ly i 2
+        op mul lx lx size
+        op mul ly ly size
+        op add lx lx x
+        op add ly ly y
+        mac GetTerrainHeight lz lx ly
+        op add heightSum heightSum lz
+        op sub lx lx $PLAYER_X
+        op sub ly ly $PLAYER_Y
+        op sub lz lz $PLAYER_Z
+        mac ApplyRotMatrixOrigin lx ly lz rotX rotY rotZ
+        op max maxDepth maxDepth rotZ
+        op add $totalExec $totalExec 32
+        jump Fail greaterThanEq $totalExec @ipt
+        op mul nsize size -1
+        jump NoDraw lessThan rotZ nsize
+        op max rotZ rotZ 0.01
+        mac ProjectPoint drawX drawY rotX rotY rotZ
+        mac ToScreenCoords drawX drawY drawX drawY
+        op add depthSum depthSum rotZ
+        setmarker posi $markerID i drawX drawY
+        op add $totalExec $totalExec 12
+    op add i i 1
+    jump Loop lessThan i 4
+    jump NoDraw lessThan maxDepth 0
+    op div avgDepth depthSum 40
+    op sub drawLayer 200 avgDepth
+    setmarker drawLayer $markerID drawLayer
+    setmarker world $markerID true
+    op div avgHeight heightSum 4
+    op noise variant x y
+    op add variant variant 1
+    op mul variant variant 1000000
+    op floor variant variant
+    jump Water equal avgHeight 0
+    jump Sand greaterThan avgHeight -1
+    jump Grass greaterThan avgHeight -10
+    Snow:
+        op mod variant variant 3
+        op add variant variant 1
+        print "snow"
+        print variant
+    jump End always
+    Grass:
+        op mod variant variant 3
+        op add variant variant 1
+        print "grass"
+        print variant
+    jump End always
+    Sand:
+        op mod variant variant 3
+        op add variant variant 1
+        print "sand-floor"
+        print variant
+    jump End always
+    Water:
+        print "deep-water"
+    End:
+    setmarker texture $markerID true
+    setmarker uvi $markerID 0 0 0
+    setmarker uvi $markerID 1 0 1
+    setmarker uvi $markerID 2 1 1
+    setmarker uvi $markerID 3 1 0
+    op add $markerID $markerID 1
+    op add $totalExec $totalExec 31
+    jump NoDraw always
+    Fail:
+    set failed true
+    jump Bottom always
+    NoDraw:
+    set failed false
+    Bottom:
+end
+
+defmac RenderTerrain
+    for range _ 0 $RENDER_PROC_COUNT
+        proc
+            setrate 1000
+            Loop:
+                wait 1e-4
+                call SetFOV $FOV
+                read $markerID $COMM_CELL $COMM_MARKER_ID
+                read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+                read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+                read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+                read $stackPointer $COMM_CELL $COMM_RENDER_STACK_POINTER
+    
+                call ReadRotMatrix
+                call ReadScreenValues
+                op floor offsetX $PLAYER_X
+                op sub offsetX offsetX $RENDER_DISTANCE
+                op floor offsetY $PLAYER_Y
+                op sub offsetY offsetY $RENDER_DISTANCE
+                op div $totalExec @ipt 10
+                op add $totalExec $totalExec 37
+                RenderLoop:
+                    jump Exit equal $stackPointer -1
+                    call ReadStack tileX tileY tileSize
+                    #jump NoCheckTile lessThanEq tileSize 16
+                    #    call CheckTile result tileX tileY tileSize failed
+                    #    op add $stackPointer $stackPointer failed
+                    #    jump Exit equal failed true
+                    #    jump RenderLoopEnd equal result false
+                    #NoCheckTile:
+                    op div halfTileSize tileSize 2
+                    op add tileX2 tileX halfTileSize
+                    op add tileY2 tileY halfTileSize
+                    op sub distX $PLAYER_X tileX2
+                    op sub distY $PLAYER_Y tileY2
+                    op len dist distX distY
+                    op div dist dist 5
+                    op max dist dist $MINIMUM_TILE_SIZE
+                    op add $totalExec $totalExec 16
+                    jump Draw lessThanEq tileSize dist
+                        call WriteStack tileX tileY halfTileSize
+                        call WriteStack tileX2 tileY halfTileSize
+                        call WriteStack tileX tileY2 halfTileSize
+                        call WriteStack tileX2 tileY2 halfTileSize
+                        op add $totalExec $totalExec 20
+                    jump RenderLoopEnd always
+                    Draw:
+                        call RenderTile tileX tileY tileSize failed
+                        op add $stackPointer $stackPointer failed
+                        jump Exit equal failed true
+                RenderLoopEnd:
+                jump RenderLoop lessThan $totalExec @ipt
+                Exit:
+                write $markerID $COMM_CELL $COMM_MARKER_ID
+                write $stackPointer $COMM_CELL $COMM_RENDER_STACK_POINTER
+            jump Loop always
+        end
+    end
+end
