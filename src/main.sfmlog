@@ -6,6 +6,7 @@ call LogInfo "Begin imports"
 import render.sfmlib
 import constants.sfmlog
 import malloc.sfmlib
+import utils.sfmlog
 
 import matrix.sfmlog
 
