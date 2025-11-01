@@ -107,7 +107,7 @@ end
 
 defmac UpdateObjects
     proc
-        setrate 1000
+        setrate 300000
         Loop:
             wait 1e-4
             read object $COMM_CELL $COMM_FIRST_OBJECT

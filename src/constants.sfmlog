@@ -14,6 +14,9 @@ defmac Schem
     block $OBJ_CACHE_X @world-cell
     block $OBJ_CACHE_Y @world-cell
     block $OBJ_CACHE_Z @world-cell
+    block $OBJ_ROT_CACHE_X @world-cell
+    block $OBJ_ROT_CACHE_Y @world-cell
+    block $OBJ_ROT_CACHE_Z @world-cell
     block $OBJ_QUEUE_MODEL @world-cell
     block $OBJ_QUEUE_X @world-cell
     block $OBJ_QUEUE_Y @world-cell
@@ -47,6 +50,10 @@ defmac Schem
     block $OBJECT_DATA7 @world-cell
     block $OBJECT_DATA8 @world-cell
     block $OBJECT_DATA9 @world-cell
+
+    block $NORM_X @world-cell
+    block $NORM_Y @world-cell
+    block $NORM_Z @world-cell
 end
 
 #player properties
@@ -101,6 +108,12 @@ pset $COMM_ICON_TASK_PROGRESS 22
 pset $COMM_FIRST_OBJECT 23
 pset $COMM_LAST_OBJECT 24
 pset $COMM_OBJECT_COUNT 25
+pset $COMM_SUN_X 26
+pset $COMM_SUN_Y 27
+pset $COMM_SUN_Z 28
+pset $COMM_SUN_LIGHT 29
+pset $COMM_AMBIANT_LIGHT 30
+pset $COMM_DELTA_TIME 31
 
 #obj render states
 pset $OBJ_TASK_ROTATE 0

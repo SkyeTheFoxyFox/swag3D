@@ -1,3 +1,5 @@
+import vec.sfmlib
+
 defmac WriteStack x y size
     op add $stackPointer $stackPointer 1
     write x $RENDER_STACK_X $stackPointer
@@ -37,6 +39,11 @@ defmac RenderObjs
             read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
             read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
             read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            read $SUN_X $COMM_CELL $COMM_SUN_X
+            read $SUN_Y $COMM_CELL $COMM_SUN_Y
+            read $SUN_Z $COMM_CELL $COMM_SUN_Z
+            read $SUN_LIGHT $COMM_CELL $COMM_SUN_LIGHT
+            read $AMBIANT_LIGHT $COMM_CELL $COMM_AMBIANT_LIGHT
             read $queueCount $COMM_CELL $COMM_OBJ_QUEUE_POINTER
             set $queuePointer 0
             set $objTask $OBJ_TASK_ROTATE
@@ -72,6 +79,9 @@ defmac RenderObjs
                     op mul ySin vertY $sinR
                     op sub vertX xCos ySin
                     op add vertY yCos xSin
+                    write vertX $OBJ_ROT_CACHE_X $taskProgress
+                    write vertY $OBJ_ROT_CACHE_Y $taskProgress
+                    write vertZ $OBJ_ROT_CACHE_Z $taskProgress
 
                     op mul lx vertX $objScale
                     op mul ly vertY $objScale
@@ -136,6 +146,11 @@ defmac RenderObjs
                     setmarker uvi $markerID 1 0 1
                     setmarker uvi $markerID 2 1 1
                     setmarker uvi $markerID 3 1 0
+                    mac ComputeObjFaceColor color face0 face1 face2
+                    setmarker colori $markerID 0 color
+                    setmarker colori $markerID 1 color
+                    setmarker colori $markerID 2 color
+                    setmarker colori $markerID 3 color
                     op add zSum z0 z1
                     op add zSum zSum z2
                     op add zSum zSum z3
@@ -155,6 +170,33 @@ defmac RenderObjs
             write $markerID $COMM_CELL $COMM_MARKER_ID
         jump Loop always
     end
+end
+
+defmac ObjGetNormal nx ny nz af bf cf
+    read ax $OBJ_ROT_CACHE_X af
+    read ay $OBJ_ROT_CACHE_Y af
+    read az $OBJ_ROT_CACHE_Z af
+    read bx $OBJ_ROT_CACHE_X bf
+    read by $OBJ_ROT_CACHE_Y bf
+    read bz $OBJ_ROT_CACHE_Z bf
+    read cx $OBJ_ROT_CACHE_X cf
+    read cy $OBJ_ROT_CACHE_Y cf
+    read cz $OBJ_ROT_CACHE_Z cf
+
+    mac VecSub abx aby abz ax ay az bx by bz
+    mac VecSub acx acy acz ax ay az cx cy cz
+    mac VecCross crossx crossy crossz abx aby abz acx acy acz
+    mac VecNormalize nx ny nz crossx crossy crossz
+end
+
+defmac ComputeObjFaceColor color af bf cf
+    mac ObjGetNormal nx ny nz af bf cf
+    mac VecDot light nx ny nz $SUN_X $SUN_Y $SUN_Z
+    op max light light 0
+    op sub tempLight $SUN_LIGHT $AMBIANT_LIGHT
+    op mul light light tempLight
+    op add light light $AMBIANT_LIGHT
+    packcolor color light light light 1
 end
 
 defmac ReadIcon
@@ -257,6 +299,10 @@ defmac RenderIcons
                     setmarker uvi $markerID 1 0 1
                     setmarker uvi $markerID 2 1 1
                     setmarker uvi $markerID 3 1 0
+                    setmarker colori $markerID 0 %ffffff
+                    setmarker colori $markerID 1 %ffffff
+                    setmarker colori $markerID 2 %ffffff
+                    setmarker colori $markerID 3 %ffffff
                     setmarker drawLayer $markerID 201
                     read materialIndex $objFaceMat $taskProgress
                     call GetMaterial material materialIndex

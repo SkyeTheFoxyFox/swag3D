@@ -1,0 +1,39 @@
+defmac VecSub ox oy oz x1 y1 z1 x2 y2 z2
+    op sub ox x1 x2
+    op sub oy y1 y2
+    op sub oz z1 z2
+end
+
+defmac VecAdd ox oy oz x1 y1 z1 x2 y2 z2
+    op add ox x1 x2
+    op add oy y1 y2
+    op add oz z1 z2
+end
+
+defmac VecCross ox oy oz x1 y1 z1 x2 y2 z2
+    op mul ox1 y1 z2
+    op mul ox2 z1 y2
+    op sub ox ox1 ox2
+    op mul oy1 z1 x2
+    op mul oy2 x1 z2
+    op sub oy oy1 oy2
+    op mul oz1 x1 y2
+    op mul oz2 y1 x2
+    op sub oz oz1 oz2
+end
+
+defmac VecNormalize ox oy oz x y z
+    op len mag x y
+    op len mag mag z
+    op div ox x mag
+    op div oy y mag
+    op div oz z mag
+end
+
+defmac VecDot dot x1 y1 z1 x2 y2 z2
+    op mul x x1 x2
+    op mul y y1 y2
+    op mul z z1 z2
+    op add dot x y
+    op add dot dot z
+end

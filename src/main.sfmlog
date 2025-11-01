@@ -291,7 +291,7 @@ proc
     jump Loop always
 end
 
-defmac DrawBackground 
+defmac DrawBackground skylight 
     read playerPitch $COMM_CELL $COMM_PLAYER_PITCH
     op sub screenLeft $camX $halfW
     op add screenRight $camX $halfW
@@ -315,6 +315,10 @@ defmac DrawBackground
     call Lerp g $BOTTOM_G $TOP_G topColor
     call Lerp b $BOTTOM_B $TOP_B topColor
 
+    op mul r r skylight
+    op mul g g skylight
+    op mul b b skylight
+
     packcolor topColor r g b 1
 
     op cos bottomColor bottomAngle
@@ -324,6 +328,10 @@ defmac DrawBackground
     call Lerp r $BOTTOM_R $TOP_R bottomColor
     call Lerp g $BOTTOM_G $TOP_G bottomColor
     call Lerp b $BOTTOM_B $TOP_B bottomColor
+
+    op mul r r skylight
+    op mul g g skylight
+    op mul b b skylight
 
     packcolor bottomColor r g b 1
 
@@ -340,8 +348,12 @@ proc
     setrate 1000
     write $ITEM_AXE $INV_TYPE 0
     write $ITEM_GUN $INV_TYPE 1
+    set oldTime @second
     Loop:
         wait 1e-4
+        op sub dt @second oldTime
+        set oldTime @second
+        write dt $COMM_CELL $COMM_DELTA_TIME
 
         read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
         read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
@@ -367,7 +379,36 @@ proc
         write 0 $COMM_CELL $COMM_PROP_PROGRESS
         write 0 $COMM_CELL $COMM_ICON_QUEUE_POINTER
 
-        call DrawBackground
+        op mul dayInc dt 1
+        op add dayTime dayTime dayInc
+        op sin sunZ dayTime
+
+        op cos sunX dayTime
+
+        op add sunlight sunZ 1
+        op div sunlight sunlight 2
+        pop sub nightlight 1 0.3
+        op mul sunlight sunlight nightlight
+        op add sunlight sunlight 0.3
+        op mul ambiantLight sunlight 0.9
+
+        op add skylight sunZ 1
+        op div skylight skylight 2
+        pop sub helllight 1 -0.5
+        op mul skylight skylight helllight
+        op add skylight skylight -0.5
+        op max skylight skylight 0
+
+        op mul sunZ sunZ -1
+        op mul sunX sunX -1
+
+        write sunX $COMM_CELL $COMM_SUN_X
+        write 0 $COMM_CELL $COMM_SUN_Y
+        write sunZ $COMM_CELL $COMM_SUN_Z
+        write sunlight $COMM_CELL $COMM_SUN_LIGHT
+        write ambiantLight $COMM_CELL $COMM_AMBIANT_LIGHT
+
+        call DrawBackground skylight
     jump Loop always
 end
 

@@ -1,3 +1,4 @@
+import vec.sfmlib
 
 defmac GetTerrainHeight height x y
     mac Noise height 2 0.125 x y
@@ -47,6 +48,9 @@ defmac RenderTile x y size
         op sub lx lx $PLAYER_X
         op sub ly ly $PLAYER_Y
         op sub lz lz $PLAYER_Z
+        write lx $NORM_X i
+        write ly $NORM_Y i
+        write lz $NORM_Z i
         mac ApplyRotMatrixOrigin lx ly lz rotX rotY rotZ
         op max maxDepth maxDepth rotZ
         op mul nsize size -1
@@ -97,13 +101,18 @@ defmac RenderTile x y size
     setmarker uvi $markerID 1 0 1
     setmarker uvi $markerID 2 1 1
     setmarker uvi $markerID 3 1 0
+    mac ComputeTileColor color
+    setmarker colori $markerID 0 color
+    setmarker colori $markerID 1 color
+    setmarker colori $markerID 2 color
+    setmarker colori $markerID 3 color
     op add $markerID $markerID 1
     NoDraw:
 end
 
 defmac RenderTerrain
     proc
-        setrate 600000
+        setrate 800000
         wait 1
         Loop:
             wait 1e-4
@@ -112,6 +121,11 @@ defmac RenderTerrain
             read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
             read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
             read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            read $SUN_X $COMM_CELL $COMM_SUN_X
+            read $SUN_Y $COMM_CELL $COMM_SUN_Y
+            read $SUN_Z $COMM_CELL $COMM_SUN_Z
+            read $SUN_LIGHT $COMM_CELL $COMM_SUN_LIGHT
+            read $AMBIANT_LIGHT $COMM_CELL $COMM_AMBIANT_LIGHT
             set $stackPointer 0
 
             call ReadRotMatrix
@@ -153,4 +167,34 @@ defmac RenderTerrain
             message mission
         jump Loop always
     end
+end
+
+defmac TileGetNormal nx ny nz
+    read ax $NORM_X 0
+    read ay $NORM_Y 0
+    read az $NORM_Z 0
+    read bx $NORM_X 1
+    read by $NORM_Y 1
+    read bz $NORM_Z 1
+    read cx $NORM_X 2
+    read cy $NORM_Y 2
+    read cz $NORM_Z 2
+
+    mac VecSub abx aby abz ax ay az bx by bz
+    mac VecSub acx acy acz ax ay az cx cy cz
+    mac VecCross crossx crossy crossz abx aby abz acx acy acz
+    jump NormalFound lessThan crossz 0
+    mac VecCross crossx crossy crossz acx acy acz abx aby abz
+    NormalFound:
+    mac VecNormalize nx ny nz crossx crossy crossz
+end
+
+defmac ComputeTileColor color
+    mac TileGetNormal nx ny nz
+    mac VecDot light nx ny nz $SUN_X $SUN_Y $SUN_Z
+    op max light light 0
+    op sub tempLight $SUN_LIGHT $AMBIANT_LIGHT
+    op mul light light tempLight
+    op add light light $AMBIANT_LIGHT
+    packcolor color light light light 1
 end
