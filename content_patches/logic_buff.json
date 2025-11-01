@@ -1,0 +1,5 @@
+{
+    "name": "World logic buff",
+    "block.world-processor.maxInstructionsPerTick": 1000000,
+    "block.world-cell.memoryCapacity": 4096
+}

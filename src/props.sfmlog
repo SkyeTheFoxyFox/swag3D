@@ -19,7 +19,6 @@ defmac GetPropValues x y scale rot index ix iy
     op mul index index 1000000
     op floor index index
     op mod index index 512
-    op add $totalExec $totalExec 24
 end
 
 defmac GetPropType type x y z
@@ -48,46 +47,39 @@ defmac GetPropType type x y z
 end
 
 defmac RenderProps
-    for range _ 12
-        proc
-            setrate 1000
-            Loop:
-                wait 1e-4
-                read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
-                read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
-                read $propProgress $COMM_CELL $COMM_PROP_PROGRESS
-                op idiv middleX $PLAYER_X $propSpacing
-                op idiv middleY $PLAYER_Y $propSpacing
-                op mul middleX middleX $propSpacing
-                op mul middleY middleY $propSpacing
-                pop mul propStartOffset $propRadius $propSpacing
-                op sub startX middleX propStartOffset
-                op sub startY middleY propStartOffset
-                op div $totalExec @ipt 10
-                op add $totalExec $totalExec 13
-                PropLoop:
-                    jump Exit equal $propProgress $propTotal
-                    op mod x $propProgress $propDiameter
-                    op idiv y $propProgress $propDiameter
-                    op mul x x $propSpacing
-                    op mul y y $propSpacing
-                    op add x x startX
-                    op add y y startY
-                    call GetPropValues x y scale rot index x y
-                    read renderTime $PROP_STATUS index
-                    op add $totalExec $totalExec 10
-                    jump NoRender lessThan @second renderTime
-                    call GetTerrainHeight z x y
-                    jump NoRender equal z 0
-                        call GetPropType type x y z
-                        call QueueModel type x y z rot scale
-                        op add $totalExec $totalExec 11
-                    NoRender:
-                    op add $propProgress $propProgress 1
-                jump PropLoop lessThan $totalExec @ipt
-                Exit:
-                write $propProgress $COMM_CELL $COMM_PROP_PROGRESS
-            jump Loop always
-        end
+    proc
+        setrate 12000
+        Loop:
+            wait 1e-4
+            read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+            read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+            set $propProgress 0
+            op idiv middleX $PLAYER_X $propSpacing
+            op idiv middleY $PLAYER_Y $propSpacing
+            op mul middleX middleX $propSpacing
+            op mul middleY middleY $propSpacing
+            pop mul propStartOffset $propRadius $propSpacing
+            op sub startX middleX propStartOffset
+            op sub startY middleY propStartOffset
+            PropLoop:
+                jump Exit equal $propProgress $propTotal
+                op mod x $propProgress $propDiameter
+                op idiv y $propProgress $propDiameter
+                op mul x x $propSpacing
+                op mul y y $propSpacing
+                op add x x startX
+                op add y y startY
+                call GetPropValues x y scale rot index x y
+                read renderTime $PROP_STATUS index
+                jump NoRender lessThan @second renderTime
+                call GetTerrainHeight z x y
+                jump NoRender equal z 0
+                    call GetPropType type x y z
+                    call QueueModel type x y z rot scale
+                NoRender:
+                op add $propProgress $propProgress 1
+            jump PropLoop always
+            Exit:
+        jump Loop always
     end
 end

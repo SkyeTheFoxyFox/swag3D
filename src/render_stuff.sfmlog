@@ -29,18 +29,7 @@ end
 
 defmac RenderObjs
     proc
-        setrate 1000
-        Loop:
-            wait 1e-4
-            write $OBJ_TASK_ROTATE $COMM_CELL $COMM_OBJ_CURRENT_TASK
-            write 0 $COMM_CELL $COMM_OBJ_QUEUE_RENDER_POINTER
-            write 0 $COMM_CELL $COMM_OBJ_TASK_PROGRESS
-        jump Loop always
-    end
-    
-    for range _ $OBJ_PROC_COUNT
-    proc
-        setrate 1000
+        setrate 300000
         Loop:
             wait 1e-4
             call SetFOV $FOV
@@ -49,8 +38,8 @@ defmac RenderObjs
             read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
             read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
             read $queueCount $COMM_CELL $COMM_OBJ_QUEUE_POINTER
-            read $queuePointer $COMM_CELL $COMM_OBJ_QUEUE_RENDER_POINTER
-            read $objTask $COMM_CELL $COMM_OBJ_CURRENT_TASK
+            set $queuePointer 0
+            set $objTask $OBJ_TASK_ROTATE
             read $selectedObj $OBJ_QUEUE_MODEL $queuePointer
             read $objX $OBJ_QUEUE_X $queuePointer
             read $objY $OBJ_QUEUE_Y $queuePointer
@@ -59,11 +48,9 @@ defmac RenderObjs
             op sin $sinR $objRot
             op cos $cosR $objRot
             read $objScale $OBJ_QUEUE_SCALE $queuePointer
-            read $taskProgress $COMM_CELL $COMM_OBJ_TASK_PROGRESS
+            set $taskProgress 0
             call ReadRotMatrix
             call ReadScreenValues
-            op div $totalExec @ipt 5
-            op add $totalExec $totalExec 40
             call ReadObj
             RenderLoop:
                 jump Exit equal $queuePointer $queueCount
@@ -73,7 +60,6 @@ defmac RenderObjs
                         set $objTask $OBJ_TASK_RENDER
                         write $objTask $COMM_CELL $COMM_OBJ_CURRENT_TASK
                         set $taskProgress 0
-                        op add $totalExec $totalExec 5
                         jump RenderLoopEnd always
                     CacheNotComplete:
                     read vertX $objVertX $taskProgress
@@ -104,7 +90,6 @@ defmac RenderObjs
                     write drawY $OBJ_CACHE_Y $taskProgress
                     write rotZ $OBJ_CACHE_Z $taskProgress
                     op add $taskProgress $taskProgress 1
-                    op add $totalExec $totalExec 46
                 jump RenderLoopEnd always
                 TaskRender:
                     jump RenderNotComplete notEqual $taskProgress $faceCount
@@ -121,7 +106,6 @@ defmac RenderObjs
                         set $objTask $OBJ_TASK_ROTATE
                         write $objTask $COMM_CELL $COMM_OBJ_CURRENT_TASK
                         set $taskProgress 0
-                        op add $totalExec $totalExec 14
                         jump RenderLoopEnd always
                     RenderNotComplete:
                     read face0 $objFace0 $taskProgress
@@ -135,7 +119,6 @@ defmac RenderObjs
                     op max zMax z0 z1
                     op max zMax zMax z2
                     op max zMax zMax z3
-                    op add $totalExec $totalExec 13
                     jump NextQuad lessThan zMax 0
                     read x0 $OBJ_CACHE_X face0
                     read x1 $OBJ_CACHE_X face1
@@ -164,17 +147,13 @@ defmac RenderObjs
                     setmarker texture $markerID false material
                     setmarker world $markerID true
                     op add $markerID $markerID 1
-                    op add $totalExec $totalExec 28
                     NextQuad:
                     op add $taskProgress $taskProgress 1
             RenderLoopEnd:
-            jump RenderLoop lessThan $totalExec @ipt
+            jump RenderLoop always
             Exit:
             write $markerID $COMM_CELL $COMM_MARKER_ID
-            write $taskProgress $COMM_CELL $COMM_OBJ_TASK_PROGRESS
-            write $queuePointer $COMM_CELL $COMM_OBJ_QUEUE_RENDER_POINTER
         jump Loop always
-    end
     end
 end
 

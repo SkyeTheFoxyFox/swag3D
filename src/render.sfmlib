@@ -159,9 +159,9 @@ end
 
 defmac CacheMaterials
     proc $MATERIAL_CACHE
-        list from variableStrings "graphite-press" "multi-press" "silicon-smelter" "silicon-crucible" "kiln" "plastanium-compressor" "phase-weaver" "cryofluid-mixer" "pyratite-mixer" "blast-mixer" "melter" "separator" "disassembler" "spore-press" "pulverizer" "coal-centrifuge" "incinerator" "copper-wall" "copper-wall-large" "titanium-wall"
         for enumerate index mat $materials
-            list get varName variableStrings index
+            list get varName $ID_LOOKUP index
+            table get varName varName "name"
             strvar unscoped variable varName
             set variable mat
         end

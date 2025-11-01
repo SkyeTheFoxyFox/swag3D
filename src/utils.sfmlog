@@ -1,0 +1,19 @@
+import std/csv.sfmlib
+
+# Parse mimex
+call ParseCSV $_MIMEX_blocks "../mimex-data/data/be/mimex-blocks.txt" ";" true
+
+# Create id lookup list
+list from $ID_LOOKUP
+table from blockTable
+for list block $_MIMEX_blocks
+    table get logicId block "logicId"
+    if notEqual logicId -1
+        table set blockTable block logicId
+    end
+end
+table len tableLen blockTable
+for range index tableLen
+    table get block blockTable index
+    list append $ID_LOOKUP block
+end

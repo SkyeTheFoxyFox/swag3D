@@ -1,0 +1,35 @@
+pset maxLayer 128
+
+list from $_TERRAIN_biomes
+
+defmac BiomeDefine name
+    pset $_TERRAIN_currentLayer 0
+    list from $_TERRAIN_layers
+    for range _ maxLayer
+        list append $_TERRAIN_layers "error"
+    end
+    table from $_TERRAIN_tempBiome "name" name "scale" 1 "offset" 0
+end
+
+defmac BiomeEnd
+    list append $_TERRAIN_biomes $_TERRAIN_tempBiome
+end
+
+defmac BiomeTexture texture firstLayer
+    if greaterThanEq firstLayer maxLayer
+        error "texture layer above max layer"
+    end
+    for range i firstLayer maxLayer
+        list set $_TERRAIN_layers texture index
+    end
+end
+
+defmac BiomeScale scale
+    table set $_TERRAIN_tempBiome scale "scale"
+end
+
+defmac BiomeOffset offset
+    table set $_TERRAIN_tempBiome offset "offset"
+end
+
+#defmac _TERRAIN_FlushBiomes

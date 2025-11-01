@@ -39,7 +39,7 @@ call CacheMaterials
 
 #init
 proc
-    setrate 1000
+    setrate 100000
     write -1 $COMM_CELL $COMM_FIRST_OBJECT
     write -1 $COMM_CELL $COMM_LAST_OBJECT
     call MallocInit $OBJECT_MALLOC $OBJECT_MALLOC_CELL 511

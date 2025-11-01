@@ -1,0 +1,8 @@
+{
+    "name": "Core/core unit mods",
+    "block.core-bastion.solid": false,
+    "unit.evoke": {
+        "canBoost": true,
+        "flying": false
+    }
+}
