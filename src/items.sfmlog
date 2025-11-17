@@ -76,12 +76,12 @@ defmac HandleGun
             jump NoInteract notEqual selectedItem $ITEM_GUN
                 call ReadRotMatrix
                 call ReadScreenValues
-                call ApplyInvRotMatrixOrigin 0 0 0.25 dx dy dz
+                call ApplyInvRotMatrixOrigin 0 0 5 dx dy dz
                 set x $PLAYER_X
                 set y $PLAYER_Y
                 set z $PLAYER_Z
-                call CreateObject object x y z 0 $objTree 0.2 $OBJECT_PROJECTILE
-                write 240 $OBJECT_DATA0 object
+                call CreateObject object x y z 0 $objTree 0.2 $scriptProjectile
+                write 10 $OBJECT_DATA0 object
                 write dx $OBJECT_DATA1 object
                 write dy $OBJECT_DATA2 object
                 write dz $OBJECT_DATA3 object

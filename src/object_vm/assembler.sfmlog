@@ -1,8 +1,7 @@
 import ins_util.sfmlog
 import instructions.sfmlog
 
-pset $ASM_CODE_BLOCK_SIZE 4096
-
+pset $_ASM_currentScript $ASM_CODE_START_Y
 defmac AssembleScript script path
     file open file path
     file read asm file
@@ -13,7 +12,10 @@ defmac AssembleScript script path
     call AsmValidateInstructions tokens2
     call AsmCheckBlocks tokens2
     call AsmParseLabels tokens3 labels tokens2
-    call AsmAssemble tokens3 labels
+    call AsmAssemble code tokens3 labels
+    call AsmPlaceBlocks code $_ASM_currentScript
+    pset script $_ASM_currentScript
+    pop sub $_ASM_currentScript $_ASM_currentScript 1
 end
 
 defmac AsmTokenize tokens asm
@@ -195,7 +197,7 @@ defmac AsmParseLabels outTokens outLabels tokens
     end
 end
 
-defmac AsmAssemble tokens labels
+defmac AsmAssemble blocks tokens labels
     table from blocks
     pset currentBlock null
     for list token tokens
@@ -213,7 +215,7 @@ defmac AsmAssemble tokens labels
             table get instNum instruction "id"
             list append blockCode instNum
             table get size instruction "size"
-            op sub size size 1
+            #op sub size size 1
             for range i 1 size
                 list get arg token i
                 strop rematch isNum arg "^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$"
@@ -249,7 +251,63 @@ defmac AsmAssemble tokens labels
             end
         end
     end
-    log blocks
 end
 
-call AssembleScript out "../../vm_scripts/test.asm"
+defmac AsmPlaceBlocks rawCode height
+    pset $_ASM_height height
+    list from procs
+    list from proc
+    pset readBlock null
+    for table block code rawCode
+        table from inst "type" "setblock" "block" block
+        call AsmProcAppendValue inst proc procs readBlock
+        table from inst "type" "getblock" "block" block
+        pset readBlock block
+        call AsmProcAppendValue inst proc procs readBlock
+        for enumerate index value code
+            if notEqual readBlock block
+                table from inst "type" "getblock" "block" block
+                pset readBlock block
+                call AsmProcAppendValue inst proc procs readBlock
+            end
+            table from inst "type" "write" "value" value "index" index
+            call AsmProcAppendValue inst proc procs readBlock
+        end
+    end
+    list len procLen proc
+    if greaterThan procLen 0
+        list append procs proc
+    end
+    for list $_ASM_proc procs
+        proc
+            setrate 1000
+            for list inst $_ASM_proc
+                table get instType inst "type"
+                if equal instType "setblock"
+                    table get block inst "block"
+                    pop add placeX $ASM_CODE_START_X block
+                    setblock block @world-cell placeX $_ASM_height @sharded
+                elif equal instType "getblock"
+                    table get block inst "block"
+                    pop add placeX $ASM_CODE_START_X block
+                    getblock building cell placeX $_ASM_height
+                elif equal instType "write"
+                    table get value inst "value"
+                    table get index inst "index"
+                    write value cell index
+                end
+            end
+            stop
+        end
+    end
+end
+
+defmac AsmProcAppendValue value proc procs readBlock
+    list append proc value
+    list len procLen proc
+    if equal procLen 998
+        list append procs proc
+        list from proc
+        pset readBlock null
+    end
+end

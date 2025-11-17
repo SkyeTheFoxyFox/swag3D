@@ -9,6 +9,7 @@ import constants.sfmlog
 import render.sfmlib
 import malloc.sfmlib
 import utils.sfmlog
+import object_vm/assembler.sfmlog
 
 import matrix.sfmlog
 
@@ -34,6 +35,8 @@ call InitObj $objTube "../models/tube.obj"
 call InitObj $iconDebug "../models/icons/debug.obj"
 call InitObj $iconHammer "../models/icons/hammer.obj"
 call CacheMaterials
+
+call AssembleScript $scriptProjectile "../vm_scripts/projectile.asm"
 
 #init
 proc

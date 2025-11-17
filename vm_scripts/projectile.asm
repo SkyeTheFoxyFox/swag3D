@@ -1,9 +1,7 @@
-.const VAR 10
-
 .block 0
-    #another comment
-    ldy 8 #a comment
+    ldy 8
     lds
+    mdt
     mvax
     ldy 0
     lds
@@ -12,6 +10,7 @@
 
     ldy 9
     lds
+    mdt
     mvax
     ldy 1
     lds
@@ -20,15 +19,19 @@
 
     ldy 10
     lds
+    mdt
     mvax
     ldy 2
     lds
     add
     sts
 
+    lda 1
+    mdt
+    mvax
     ldy 7
     lds
-    dec
+    sub
     ldx 0
     jgt NotDead
     die
@@ -38,9 +41,5 @@ NotDead:
     sts
     end
 
-.endblock
-
-.block 1
-    Label:
 .endblock
 
