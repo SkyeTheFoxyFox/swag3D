@@ -1,0 +1,38 @@
+import ins_util.sfmlog
+import instructions.sfmlog
+
+defmac AsmExecutor object script
+    pset $_ASM_objectID object
+    pset $_ASM_script script
+
+    read $_ASM_dt $COMM_CELL $COMM_DELTA_TIME
+
+    read $_ASM_objectMemX $COMM_CELL $COMM_SCHEM_X
+    read $_ASM_objectMemY $COMM_CELL $COMM_SCHEM_Y
+    op sub $_ASM_objectMemY $_ASM_objectMemY 2
+
+    getblock building $_ASM_currentCodeCell $ASM_CODE_START_X script
+    jump ExecEnd strictEqual $_ASM_currentCodeCell null
+    set $_ASM_execPointer 0
+    ExecLoop:
+        call AsmReadValue inst
+        op add @counter @counter inst
+        jump ExecLoop always
+        jump ExecEnd always
+        for list inst $_OBJ_ASM_instructionList
+            table get name inst "name"
+            strop cat instLabelStr "Instruction_" name
+            strvar local instLabel instLabelStr
+            jump instLabel always
+        end
+        for list inst $_OBJ_ASM_instructionList
+            table get name inst "name"
+            strop cat instLabelStr "Instruction_" name
+            strlabel instLabelStr
+            table get code inst "code"
+            call code
+            jump ExecLoop always
+        end
+    ExecEnd:
+end
+

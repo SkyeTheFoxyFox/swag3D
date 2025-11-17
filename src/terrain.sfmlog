@@ -1,20 +1,20 @@
 import vec.sfmlib
 
 defmac GetTerrainHeight height x y
-    mac Noise height 2 0.125 x y
+    mac Noise heightTmp 2 0.125 x y
     mac Noise h 4 0.25 x y
-    op add height height h
+    op add heightTmp heightTmp h
     mac Noise h 8 0.5 x y
-    op add height height h
+    op add heightTmp heightTmp h
     mac Noise h 16 2 x y
-    op add height height h
+    op add heightTmp heightTmp h
     mac Noise h 32 4 x y
-    op add height height h
+    op add heightTmp heightTmp h
     mac Noise h 64 8 x y
-    op add height height h
+    op add heightTmp heightTmp h
     mac Noise h 128 16 x y
-    op add height height h
-    op min height height 0
+    op add heightTmp heightTmp h
+    op min height heightTmp 0
 end
 
 defmac Noise out freq amp x y

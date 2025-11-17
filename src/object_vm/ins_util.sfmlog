@@ -1,0 +1,30 @@
+if equal $_OBJ_ASM_instructionTable null
+    table from $_OBJ_ASM_instructionTable
+    list from $_OBJ_ASM_instructionList
+
+    #init special instructions
+    table from inst "name" "nop" "id" 0 "code" null "size" 1 "hasLabel" false
+    table set $_OBJ_ASM_instructionTable inst "nop"
+    table from inst "name" "end" "id" 1 "code" null "size" 1 "hasLabel" false
+    table set $_OBJ_ASM_instructionTable inst "end"
+
+    pset $_OBJ_ASM_currentInstructionCount 2
+end
+
+defmac AddInstruction name code size hasLabel
+    if strictEqual hasLabel null
+        pset hasLabel false
+    end
+    if in name $_OBJ_ASM_instructionTable
+    else
+        table from inst "name" name "id" $_OBJ_ASM_currentInstructionCount "code" code "size" size "hasLabel" hasLabel
+        pop add $_OBJ_ASM_currentInstructionCount $_OBJ_ASM_currentInstructionCount 1
+        table set $_OBJ_ASM_instructionTable inst name
+        list append $_OBJ_ASM_instructionList inst
+    end
+end
+
+defmac AsmReadValue value
+    read value $_ASM_currentCodeCell $_ASM_execPointer
+    op add $_ASM_execPointer $_ASM_execPointer 1
+end

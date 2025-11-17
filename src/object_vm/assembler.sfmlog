@@ -1,0 +1,255 @@
+import ins_util.sfmlog
+import instructions.sfmlog
+
+pset $ASM_CODE_BLOCK_SIZE 4096
+
+defmac AssembleScript script path
+    file open file path
+    file read asm file
+    file close file
+
+    call AsmTokenize tokens asm
+    call AsmEvalConst tokens2 tokens
+    call AsmValidateInstructions tokens2
+    call AsmCheckBlocks tokens2
+    call AsmParseLabels tokens3 labels tokens2
+    call AsmAssemble tokens3 labels
+end
+
+defmac AsmTokenize tokens asm
+    list from tokens
+    strop split lines asm "\n"
+    for list line lines
+        strop regroups line line "^(.*?)(#.*)?$"
+        list get line line 0
+        strop rematch isEmpty line "^\s*$"
+        if strictEqual isEmpty null
+            strop regroups line line "^\s*(.*?)\s*$"
+            list get line line 0
+            strop split line line " " 
+            list append tokens line
+        end
+    end
+end
+
+defmac AsmEvalConst outTokens tokens
+    list from outTokens
+    table from consts
+    for list token tokens
+        list get inst token 0
+        if equal inst ".const"
+            list len instLen token
+            if lessThan instLen 2
+                error "Expected const name"
+            end
+            list get constName token 1
+            if lessThan instLen 3
+                error "Expected value for constant '" constName "'"
+            end
+            list get constValue token 2
+            if greaterThan instLen 3
+                list get nextArg token 3
+                error "Unexpected text '" nextArg "[...]' after constant definition '" inst constName constValue "'"
+            end
+            table set consts constValue constName
+        else
+            list from outToken
+            for list word token
+                if in consts word
+                    table get newWord consts word
+                    list append outToken newWord
+                else
+                    list append outToken word
+                end
+            end
+            list append outTokens outToken
+        end
+    end
+end
+
+defmac AsmValidateInstructions tokens
+    for list token tokens
+        list get inst token 0
+        strop rematch isAssembler inst "^\."
+        strop rematch isLabel inst ":$"
+        if notEqual isAssembler null
+        elif notEqual isLabel null
+        else
+            if in $_OBJ_ASM_instructionTable inst
+            else
+                error "Unknown instruction '" inst "'"
+            end 
+            table get instruction $_OBJ_ASM_instructionTable inst
+            table get size instruction "size"
+            list len instLen token
+            pop sub argCount size 1
+            if lessThan instLen size
+                error "Expected " argCount " arguments for instruction '" inst "'"
+            elif greaterThan instLen size
+                error "Expected " argCount " arguments for instruction '" inst "'"
+            end
+        end
+    end    
+end
+
+defmac AsmCheckBlocks tokens
+    pset inBlock false
+    table from definedBlocks
+    for list token tokens
+        list get inst token 0
+        strop charat firstChar inst 0
+        if equal inst ".block"
+            if notEqual inBlock false
+                error "Unable to open block within a block"
+            end
+            list len instLen token
+            if lessThan instLen 2
+                error "Expected number after block definition"
+            end
+            list get blockNum token 1
+            if greaterThan len 2
+                list get nextArg token 2
+                error "Unexpected text '" nextArg "[...]' after block definition '" inst blockNum "'"
+            end
+            strop rematch isNum blockNum "^[0-9]*$"
+            if strictEqual isNum null
+                error "Expected integer block number, instead found '" blockNum "'"
+            end
+            strop num blockNum blockNum
+            if in definedBlocks blockNum
+                error "Block " blockNum " already defined"
+            end
+            pset inBlock true
+            table set definedBlocks true blockNum
+        elif equal inst ".endblock"
+            if notEqual inBlock true
+                error "Unable to end block outside of a block"
+            end
+            pset inBlock false
+        elif notEqual firstChar "."
+            if equal inBlock false
+                error "Unexpected instruction '" inst "' outside block"
+            end
+        end
+    end
+    if equal inBlock true
+        error "Block not closed"
+    end
+end
+
+defmac AsmParseLabels outTokens outLabels tokens
+    list from outTokens
+    table from outLabels
+    pset currentPos 0
+    pset curblock -1
+    pset inblock false
+    for list token tokens
+        list get inst token 0
+        strop charat lastChar inst -1
+        if equal lastChar ":"
+            list len len token
+            if greaterThan len 1
+                list get nextarg token 1
+                error "Unexpected text '" nextarg "[...]' after label definition '" inst "'"
+            end
+            if equal inblock false
+                error "Unexpected label '" inst "' outside of a block (after block " curblock ")"
+            end
+            strop regroups label inst "^(.*):$"
+            list get label label 0
+            # pop add labelPos currentPos 1
+            # // this is mostly for myself but
+            # // currentPos = 0
+            # // line 1: label: (jumps to 0)
+            # // line 2: command (is at 0)
+            # // ?
+            pset labelPos currentPos
+            pop mul blockOffset curblock $ASM_CODE_BLOCK_SIZE
+            pop add labelPosGlobal labelPos blockOffset
+            table from table "block" curblock "local" labelPos "global" labelPosGlobal
+            table set outLabels table label
+        else
+            list append outTokens token
+            strop charat firstChar inst 0
+            if notEqual firstChar "."
+                table get instruction $_OBJ_ASM_instructionTable inst
+                table get size instruction "size"
+                pop add currentPos currentPos size
+            elif equal inst ".block"
+                list len len token
+                if lessThan len 2
+                    error "Expected number after block definition"
+                end
+                list get blocknum token 1
+                if greaterThan len 2
+                    list get nextarg token 2
+                    error "Unexpected text '" nextarg "[...]' after block definition '" inst blocknum "'"
+                end
+                strop num curblock blocknum
+                pset inblock true
+                pset currentPos 0
+            elif equal inst ".endblock"
+                pset inblock false
+            end
+        end
+    end
+end
+
+defmac AsmAssemble tokens labels
+    table from blocks
+    pset currentBlock null
+    for list token tokens
+        list get inst token 0
+        strop charat firstChar inst 0
+        if equal inst ".block"
+            list from blockCode
+            list get blockNum token 1
+            strop num currentBlock blockNum
+        elif equal inst ".endblock"    
+            table set blocks blockCode currentBlock  
+        elif equal firstChar "."
+        else
+            table get instruction $_OBJ_ASM_instructionTable inst
+            table get instNum instruction "id"
+            list append blockCode instNum
+            table get size instruction "size"
+            op sub size size 1
+            for range i 1 size
+                list get arg token i
+                strop rematch isNum arg "^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$"
+                if equal i 1
+                    table get hasLabel instruction "hasLabel"
+                    if equal hasLabel false
+                        if strictEqual isNum null
+                            error "Expected number value for instruction '" inst "' argument " i
+                        end
+                        strop num num arg
+                        list append blockCode num
+                    else
+                        table get label labels arg
+                        if equal hasLabel true
+                            table get labelBlock label "block"
+                            if notEqual labelBlock currentBlock
+                                error "Invalid attempt to jump to label '" arg "' from block " currentBlock " with instruction '" inst "'" 
+                            end
+                            table get labelNum label "local"
+                            list append blockCode labelNum
+                        else
+                            table get labelNum label "global"
+                            list append blockCode labelNum
+                        end
+                    end
+                else
+                    if strictEqual isNum null
+                        error "Expected number value for instruction '" inst "' argument " i
+                    end
+                    strop num num arg
+                    list append blockCode num
+                end
+            end
+        end
+    end
+    log blocks
+end
+
+call AssembleScript out "../../vm_scripts/test.asm"

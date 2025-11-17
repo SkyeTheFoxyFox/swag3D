@@ -1,10 +1,12 @@
 import std/logging.sfmlib
 call SetLogging "info"
+pset $PROCESSOR_TYPE @world-processor
+
 call LogInfo "Begin build"
 
 call LogInfo "Begin imports"
-import render.sfmlib
 import constants.sfmlog
+import render.sfmlib
 import malloc.sfmlib
 import utils.sfmlog
 
@@ -18,15 +20,11 @@ import objects.sfmlog
 import render_stuff.sfmlog
 call LogInfo "Finished imports"
 
-pset $PROCESSOR_TYPE @world-processor
-
 defmac Lerp out in0 in1 t
     op sub out in1 in0
     op mul out t out
     op add out in0 out
 end
-
-call Schem
 
 #load models
 call InitObj $objTree "../models/tree.obj"
@@ -379,28 +377,30 @@ proc
         write 0 $COMM_CELL $COMM_PROP_PROGRESS
         write 0 $COMM_CELL $COMM_ICON_QUEUE_POINTER
 
-        op mul dayInc dt 1
+        op mul dayInc dt 6
         op add dayTime dayTime dayInc
-        op sin sunZ dayTime
+        op sin sunHeight dayTime
+        op mod halfdayTime dayTime 180
 
-        op cos sunX dayTime
-
-        op add sunlight sunZ 1
+        op add sunlight sunHeight 1
         op div sunlight sunlight 2
-        pop sub nightlight 1 0.3
+        pop sub nightlight $SUNLIGHT_MAX $SUNLIGHT_MIN
         op mul sunlight sunlight nightlight
-        op add sunlight sunlight 0.3
-        op mul ambiantLight sunlight 0.9
+        #op add sunlight sunlight $SUNLIGHT_MIN
+        op max sunlight sunlight $SUNLIGHT_MIN_CLAMP
+        op mul ambiantLight sunlight $AMBIANT_LIGHT_MULT
 
-        op add skylight sunZ 1
+        op add skylight sunHeight 1
         op div skylight skylight 2
         pop sub helllight 1 -0.5
         op mul skylight skylight helllight
         op add skylight skylight -0.5
         op max skylight skylight 0
 
-        op mul sunZ sunZ -1
-        op mul sunX sunX -1
+        op sin moonZ halfdayTime
+        op cos moonX halfdayTime
+        op mul sunZ moonZ -1
+        op mul sunX moonX -1
 
         write sunX $COMM_CELL $COMM_SUN_X
         write 0 $COMM_CELL $COMM_SUN_Y

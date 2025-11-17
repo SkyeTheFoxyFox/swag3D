@@ -1,0 +1,66 @@
+# assembler ops
+.block index    # define a block of code with defined index
+.endblock       # end a block of code
+.const name val # set a constant for use in code
+.include file   # parse and include another asm file
+
+nop             # do nothing
+end             # end execution for this cycle
+
+# register loads
+lda val         # load a value into the a register
+ldx val         # load a value into the x register
+ldy val         # load a value into the y register
+
+# register movement
+mvax            # move the value of a to x
+mvay            # move the value of a to y
+mvxa            # move the value of x to a
+mvxy            # move the value of x to y
+mvya            # move the value of y to a
+mvyx            # move the value of y to x
+
+# memory ops
+stg             # write a to global memory at y
+sts             # write a to current object's memory at y 
+sto             # write a to object memory at y for object x
+     
+ldg             # load a value from global memory at y
+lds             # load a value from current object's memory at y
+ldo             # load a value from object memory at y for object x
+
+# maybe some direct access instructions for object memory to save a couple instructions spent indexing the world
+
+# unconditional jumps
+jmp label       # jump to position/label within current block
+jmpr label      # jump to position/label outside current block
+stbl blk        # jump to the start of block blk
+
+# conditional jumps (within current block)
+jlt label       # jump if a < x
+jgt label       # jump if a > x
+jle label       # jump if a <= x
+jge label       # jump if a >= x
+jeq label       # jump if a == x
+jnq label       # jump if a != x
+
+# maybe add remote versions of the conditional jumps?
+
+# math ops
+inc             # increment a
+dec             # decrement a
+add             # a = a + x
+sub             # a = a - x
+
+mdt             # a = a * dt
+
+# and a bunch more math ops for most ops in mlog's op instruction
+
+# and probably a few ops for swag3d specific instructions that are needed enough to justify the performance boost of native mlog
+
+# swag3d ops
+
+spwn            # spawn an object, and write it's address to a
+kill            # kill an object with the id in a
+die             # kill the current object
+trn             # set a to the hight of the terrain at a,x

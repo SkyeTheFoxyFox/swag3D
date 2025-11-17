@@ -5,7 +5,7 @@ pset $FOV 60
 
 #schem
 defmac Schem
-    call LogInfo "Creating schem"
+    #call LogInfo "Creating schem"
     block $COMM_CELL @world-cell
     block $MATRIX @world-cell
     block $RENDER_STACK_X @world-cell
@@ -31,25 +31,27 @@ defmac Schem
     block $INV_COUNT @world-cell
 
     block $OBJECT_MALLOC_CELL @world-cell
-    block $OBJECT_X @world-cell
-    block $OBJECT_Y @world-cell
-    block $OBJECT_Z @world-cell
-    block $OBJECT_ROTATION @world-cell
-    block $OBJECT_MODEL @world-cell
-    block $OBJECT_SIZE @world-cell
-    block $OBJECT_TYPE @world-cell
+    block $OBJECT_X @world-cell 0 -2
+    block $OBJECT_Y @world-cell 1 -2
+    block $OBJECT_Z @world-cell 2 -2
+    block $OBJECT_ROTATION @world-cell 3 -2
+    block $OBJECT_MODEL @world-cell 4 -2
+    block $OBJECT_SIZE @world-cell 5 -2
+    block $OBJECT_TYPE @world-cell 6 -2
     block $OBJECT_FORWARD_POINTER @world-cell
     block $OBJECT_BACKWARD_POINTER @world-cell
-    block $OBJECT_DATA0 @world-cell
-    block $OBJECT_DATA1 @world-cell
-    block $OBJECT_DATA2 @world-cell
-    block $OBJECT_DATA3 @world-cell
-    block $OBJECT_DATA4 @world-cell
-    block $OBJECT_DATA5 @world-cell
-    block $OBJECT_DATA6 @world-cell
-    block $OBJECT_DATA7 @world-cell
-    block $OBJECT_DATA8 @world-cell
-    block $OBJECT_DATA9 @world-cell
+    block $OBJECT_DATA0 @world-cell 7 -2
+    block $OBJECT_DATA1 @world-cell 8 -2
+    block $OBJECT_DATA2 @world-cell 9 -2
+    block $OBJECT_DATA3 @world-cell 10 -2
+    block $OBJECT_DATA4 @world-cell 11 -2
+    block $OBJECT_DATA5 @world-cell 12 -2
+    block $OBJECT_DATA6 @world-cell 13 -2
+    block $OBJECT_DATA7 @world-cell 14 -2
+    block $OBJECT_DATA8 @world-cell 15 -2
+    block $OBJECT_DATA9 @world-cell 16 -2
+
+    block $ASM_GLOBAL_MEM @world-cell
 
     block $NORM_X @world-cell
     block $NORM_Y @world-cell
@@ -68,10 +70,11 @@ pset $BOTTOM_R 0.839
 pset $BOTTOM_G 0.925
 pset $BOTTOM_B 1
 
-#processor counts
-pset $RENDER_PROC_COUNT 600
-pset $OBJ_PROC_COUNT 300
-pset $ICON_PROC_COUNT 20
+#sunlight properties
+pset $SUNLIGHT_MAX 1
+pset $SUNLIGHT_MIN 0
+pset $SUNLIGHT_MIN_CLAMP 0.5
+pset $AMBIANT_LIGHT_MULT 0.7
 
 #tile renderer
 pset $RENDER_DISTANCE 512
@@ -112,8 +115,14 @@ pset $COMM_SUN_X 26
 pset $COMM_SUN_Y 27
 pset $COMM_SUN_Z 28
 pset $COMM_SUN_LIGHT 29
-pset $COMM_AMBIANT_LIGHT 30
-pset $COMM_DELTA_TIME 31
+pset $COMM_MOON_X 30
+pset $COMM_MOON_Y 31
+pset $COMM_MOON_Z 32
+pset $COMM_MOON_LIGHT 33
+pset $COMM_AMBIANT_LIGHT 34
+pset $COMM_DELTA_TIME 35
+pset $COMM_SCHEM_X 36
+pset $COMM_SCHEM_Y 37
 
 #obj render states
 pset $OBJ_TASK_ROTATE 0
@@ -127,6 +136,11 @@ pset $GP_INVENTORY 1 #inventory state, shows the inventory
 pset $ITEM_NONE 0
 pset $ITEM_AXE 1
 pset $ITEM_GUN 2
+
+#assembler/exec
+pset $ASM_CODE_START_X 40
+pset $ASM_CODE_START_Y 194
+pset $ASM_CODE_BLOCK_SIZE 4096
 
 #predefined markers
 pset $MARKER_BACKGROUND 9000
@@ -148,3 +162,11 @@ pop div $halfPropSpacing $propSpacing 2
 pop mul $propDiameter $propRadius 2
 pop add $propDiameter $propDiameter 1
 pop pow $propTotal $propDiameter 2
+
+call Schem
+
+proc
+    write @thisx $COMM_CELL $COMM_SCHEM_X
+    write @thisy $COMM_CELL $COMM_SCHEM_Y
+    stop
+end

@@ -19,6 +19,10 @@ Held Item Rendering:
     A custom model for each item when in hand
     Pre-sorted (or entirely pre-computed?) and rendered just under the UI
 
+Objects:
+    Make objects run VM code:
+        sfmlog based assembler for parsing VM assembly
+
 Content:
     Items:
         Resources:

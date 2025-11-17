@@ -1,0 +1,402 @@
+import ins_util.sfmlog
+
+defmac lda
+    call AsmReadValue val
+    set $_ASM_registerA val
+end
+call AddInstruction "lda" lda 2
+
+defmac ldx
+    call AsmReadValue val
+    set $_ASM_registerX val
+end
+call AddInstruction "ldx" ldx 2
+
+defmac ldy
+    call AsmReadValue val
+    set $_ASM_registerY val
+end
+call AddInstruction "ldy" ldy 2
+
+defmac mvax
+    set $_ASM_registerX $_ASM_registerA
+end
+call AddInstruction "mvax" mvax 1
+
+defmac mvay
+    set $_ASM_registerY $_ASM_registerA
+end
+call AddInstruction "mvay" mvay 1
+
+defmac mvxa
+    set $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "mvxa" mvxa 1
+
+defmac mvxy
+    set $_ASM_registerY $_ASM_registerX
+end
+call AddInstruction "mvxy" mvxy 1
+
+defmac mvya
+    set $_ASM_registerA $_ASM_registerY
+end
+call AddInstruction "mvya" mvya 1
+
+defmac mvyx
+    set $_ASM_registerX $_ASM_registerY
+end
+call AddInstruction "mvyx" mvyx 1
+
+defmac stg
+    write $_ASM_registerA $ASM_GLOBAL_MEM $_ASM_registerY
+end
+call AddInstruction "stg" stg 1
+
+defmac sts
+    op add cellX $_ASM_objectMemX $_ASM_registerY
+    getblock building cell cellX $_ASM_objectMemY
+    write $_ASM_registerA cell $_ASM_objectID
+end
+call AddInstruction "sts" sts 1
+
+defmac sto
+    op add cellX $_ASM_objectMemX $_ASM_registerY
+    getblock building cell cellX $_ASM_objectMemY
+    write $_ASM_registerA cell $_ASM_registerX
+end
+call AddInstruction "sto" sto 1
+
+defmac ldg
+    read $_ASM_registerA $ASM_GLOBAL_MEM $_ASM_registerY
+end
+call AddInstruction "ldg" ldg 1
+
+defmac lds
+    op add cellX $_ASM_objectMemX $_ASM_registerY
+    getblock building cell cellX $_ASM_objectMemY
+    read $_ASM_registerA cell $_ASM_objectID
+end
+call AddInstruction "lds" lds 1
+
+defmac ldo
+    op add cellX $_ASM_objectMemX $_ASM_registerY
+    getblock building cell cellX $_ASM_objectMemY
+    read $_ASM_registerA cell $_ASM_registerX
+end
+call AddInstruction "ldo" ldo 1
+
+defmac I_jmp
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+end
+call AddInstruction "jmp" I_jmp 2 true
+
+defmac jmpr
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    op idiv codeCell addr $ASM_CODE_BLOCK_SIZE
+    op add codeCell codeCell $ASM_CODE_START_X
+    getblock building $_ASM_currentCodeCell codeCell $_ASM_script
+    op mod $_ASM_execPointer addr $ASM_CODE_BLOCK_SIZE
+end
+call AddInstruction "jmpr" jmpr 2 2 # 2 defines a remote jump
+
+defmac stbl
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    op add codeCell blk $ASM_CODE_START_X
+    getblock building $_ASM_currentCodeCell codeCell $_ASM_script
+    set $_ASM_execPointer -1
+end
+call AddInstruction "stbl" stbl 2
+
+defmac jlt
+    jump End greaterThanEq $_ASM_registerA $_ASM_registerX
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+    End:
+end
+call AddInstruction "jlt" jlt 2 true
+
+defmac jgt
+    jump End lessThanEq $_ASM_registerA $_ASM_registerX
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+    End:
+end
+call AddInstruction "jgt" jgt 2 true
+
+defmac jle
+    jump End greaterThan $_ASM_registerA $_ASM_registerX
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+    End:
+end
+call AddInstruction "jle" jle 2 true
+
+defmac jge
+    jump End lessThan $_ASM_registerA $_ASM_registerX
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+    End:
+end
+call AddInstruction "jge" jge 2 true
+
+defmac jeq
+    jump End notEqual $_ASM_registerA $_ASM_registerX
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+    End:
+end
+call AddInstruction "jeq" jeq 2 true
+
+defmac jne
+    jump End equal $_ASM_registerA $_ASM_registerX
+    read addr $_ASM_currentCodeCell $_ASM_execPointer
+    set $_ASM_execPointer addr
+    End:
+end
+call AddInstruction "jne" jne 2 true
+
+defmac inc
+    op add $_ASM_registerA $_ASM_registerA 1
+end
+call AddInstruction "inc" inc 1
+
+defmac dec
+    op sub $_ASM_registerA $_ASM_registerA 1
+end
+call AddInstruction "dec" dec 1
+
+defmac add
+    op add $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "add" add 1
+
+defmac sub
+    op sub $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "sub" sub 1
+
+defmac mul
+    op mul $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "mul" mul 1
+
+defmac div
+    op div $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "div" div 1
+
+defmac idiv
+    op idiv $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "idiv" idiv 1
+
+defmac mod
+    op mod $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "mod" mod 1
+
+defmac emod
+    op emod $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "emod" emod 1
+
+defmac pow
+    op pow $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "pow" pow 1
+
+defmac eq
+    op equal $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "eq" eq 1
+
+defmac ne
+    op notEqual $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "ne" ne 1
+
+defmac and
+    op and $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "and" and 1
+
+defmac lt
+    op lessThan $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "lt" lt 1
+
+defmac gt
+    op greaterThan $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "gt" gt 1
+
+defmac le
+    op lessThanEq $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "le" le 1
+
+defmac ge
+    op greaterThanEq $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "ge" ge 1
+
+defmac shl
+    op shl $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "shl" shl 1
+
+defmac shr
+    op shr $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "shr" shr 1
+
+defmac ushr
+    op ushr $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "ushr" ushr 1
+
+defmac or
+    op or $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "or" or 1
+
+defmac xor
+    op xor $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "xor" xor 1
+
+defmac not
+    op not $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "not" not 1
+
+defmac max
+    op max $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "max" max 1
+
+defmac min
+    op min $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "min" min 1
+
+defmac angle
+    op angle $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "angle" angle 1
+
+defmac I_len
+    op len $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "len" I_len 1
+
+defmac noise
+    op noise $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "noise" noise 1
+
+defmac abs
+    op noise $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "abs" abs 1
+
+defmac sign
+    op sign $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "sign" sign 1
+
+defmac log
+    op log $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "log" log 1
+
+defmac logn
+    op logn $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end
+call AddInstruction "logn" logn 1
+
+defmac log10
+    op log10 $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "log10" log10 1
+
+defmac floor
+    op floor $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "floor" floor 1
+
+defmac ceil
+    op ceil $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "ceil" ceil 1
+
+defmac round
+    op round $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "round" round 1
+
+defmac sqrt
+    op sqrt $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "sqrt" sqrt 1
+
+defmac rand
+    op rand $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "rand" rand 1
+
+defmac sin
+    op sin $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "sin" sin 1
+
+defmac cos
+    op cos $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "cos" cos 1
+
+defmac tan
+    op tan $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "tan" tan 1
+
+defmac asin
+    op asin $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "asin" asin 1
+
+defmac acos
+    op acos $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "acos" acos 1
+
+defmac atan
+    op atan $_ASM_registerA $_ASM_registerA
+end
+call AddInstruction "atan" atan 1
+
+defmac mdt
+    op mul $_ASM_registerA $_ASM_registerA $_ASM_dt
+end
+call AddInstruction "mdt" mdt 1
+
+defmac spwn
+    call CreateNullObject $_ASM_registerA
+end
+call AddInstruction "spwn" spwn 1
+
+defmac kill
+    call RemoveObject $_ASM_registerA
+end
+call AddInstruction "kill" kill 1
+
+defmac die
+    call RemoveObject $_ASM_objectID
+end
+call AddInstruction "die" die 1
+
+defmac trn
+    call GetTerrainHeight $_ASM_registerA $_ASM_registerA $_ASM_registerX
+end

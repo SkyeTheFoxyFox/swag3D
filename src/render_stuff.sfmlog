@@ -26,7 +26,6 @@ defmac ReadObj
     getblock building $objFaceMat 13 $selectedObj
     read $vertCount $objMeshData 0
     read $faceCount $objMeshData 1
-    op add $totalExec $totalExec 12
 end
 
 defmac RenderObjs
@@ -210,7 +209,6 @@ defmac ReadIcon
     getblock building $objFaceMat 13 $selectedIcon
     read $vertCount $objMeshData 0
     read $faceCount $objMeshData 1
-    op add $totalExec $totalExec 10
 end
 
 defmac RenderIcons
@@ -223,22 +221,19 @@ defmac RenderIcons
     jump Loop always
     end
 
-    for range _ $ICON_PROC_COUNT
     proc
-        setrate 1000
+        setrate 20000
         Loop:
             wait 1e-4
             read $markerID $COMM_CELL $COMM_MARKER_ID
             read $queueCount $COMM_CELL $COMM_ICON_QUEUE_POINTER
-            read $queuePointer $COMM_CELL $COMM_ICON_QUEUE_RENDER_POINTER
+            set $queuePointer 0
             read $objTask $COMM_CELL $COMM_ICON_CURRENT_TASK
             read $selectedIcon $ICON_QUEUE_MODEL $queuePointer
             read $iconX $ICON_QUEUE_X $queuePointer
             read $iconY $ICON_QUEUE_Y $queuePointer
-            read $taskProgress $COMM_CELL $COMM_ICON_TASK_PROGRESS
+            set $taskProgress 0
             call ReadScreenValues
-            op div $totalExec @ipt 5
-            op add $totalExec $totalExec 18
             call ReadIcon
             RenderLoop:
                 jump Exit equal $queuePointer $queueCount
@@ -264,7 +259,6 @@ defmac RenderIcons
                     write lx $OBJ_CACHE_X $taskProgress
                     write ly $OBJ_CACHE_Y $taskProgress
                     op add $taskProgress $taskProgress 1
-                    op add $totalExec $totalExec 15
                 jump RenderLoopEnd always
                 TaskRender:
                     jump RenderNotComplete notEqual $taskProgress $faceCount
@@ -276,7 +270,6 @@ defmac RenderIcons
                         set $objTask $OBJ_TASK_ROTATE
                         write $objTask $COMM_CELL $COMM_ICON_CURRENT_TASK
                         set $taskProgress 0
-                        op add $totalExec $totalExec 10
                         jump RenderLoopEnd always
                     RenderNotComplete:
                     read face0 $objFace0 $taskProgress
@@ -309,17 +302,13 @@ defmac RenderIcons
                     setmarker texture $markerID false material
                     setmarker world $markerID true
                     op add $markerID $markerID 1
-                    op add $totalExec $totalExec 26
                     NextQuad:
                     op add $taskProgress $taskProgress 1
             RenderLoopEnd:
-            jump RenderLoop lessThan $totalExec @ipt
+            jump RenderLoop always
             Exit:
             write $markerID $COMM_CELL $COMM_MARKER_ID
-            write $taskProgress $COMM_CELL $COMM_ICON_TASK_PROGRESS
-            write $queuePointer $COMM_CELL $COMM_ICON_QUEUE_RENDER_POINTER
         jump Loop always
-    end
     end
 end
 

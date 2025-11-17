@@ -1,4 +1,6 @@
-pset $OBJECT_PROJECTILE 0
+import object_vm/executor.sfmlog
+
+pset $OBJECT_PROJECTILE 194
 pset $OBJECT_ITEM 1
 
 defmac CreateObject object x y z rotation model size type
@@ -11,6 +13,31 @@ defmac CreateObject object x y z rotation model size type
     write model $OBJECT_MODEL object
     write size $OBJECT_SIZE object
     write type $OBJECT_TYPE object
+
+    write -1 $OBJECT_FORWARD_POINTER object
+
+    read lastObject $COMM_CELL $COMM_LAST_OBJECT
+    jump NoObject equal lastObject -1
+        write object $OBJECT_FORWARD_POINTER lastObject
+        write lastObject $OBJECT_BACKWARD_POINTER object
+        write object $COMM_CELL $COMM_LAST_OBJECT
+    jump EndObject always
+    NoObject:
+        write object $COMM_CELL $COMM_FIRST_OBJECT
+        write object $COMM_CELL $COMM_LAST_OBJECT
+        write -1 $OBJECT_BACKWARD_POINTER object
+    EndObject:
+
+    read objectCount $COMM_CELL $COMM_OBJECT_COUNT
+    op add objectCount objectCount 1
+    write objectCount $COMM_CELL $COMM_OBJECT_COUNT
+
+    Fail:
+end
+
+defmac CreateNullObject objectCount
+    call Malloc $OBJECT_MALLOC object
+    jump Fail equal object -1
 
     write -1 $OBJECT_FORWARD_POINTER object
 
@@ -92,19 +119,6 @@ defmac UpdateObjectItem object x y z rot
     write t $OBJECT_DATA1 object
 end
 
-defmac UpdateObject object type x y z rot
-    op add @counter @counter type
-    jump Projectile always
-    jump Item always
-
-    Projectile:
-        call UpdateObjectProjectile object x y z rot
-    jump End always
-    Item:
-        call UpdateObjectItem object x y z rot
-    End:
-end
-
 defmac UpdateObjects
     proc
         setrate 300000
@@ -121,7 +135,7 @@ defmac UpdateObjects
                 read size $OBJECT_SIZE object
                 read type $OBJECT_TYPE object
                 call QueueModel model x y z rotation size
-                call UpdateObject object type x y z rotation
+                call AsmExecutor object type
                 read object $OBJECT_FORWARD_POINTER object
             jump ListLoop notEqual object -1
             NoUpdate:
