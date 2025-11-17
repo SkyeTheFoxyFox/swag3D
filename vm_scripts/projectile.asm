@@ -1,9 +1,11 @@
+.import constants.asm
+
 .block 0
     ldy 8
     lds
     mdt
     mvax
-    ldy 0
+    ldy OBJECT_X
     lds
     add
     sts
@@ -12,7 +14,7 @@
     lds
     mdt
     mvax
-    ldy 1
+    ldy OBJECT_Y
     lds
     add
     sts
@@ -21,7 +23,7 @@
     lds
     mdt
     mvax
-    ldy 2
+    ldy OBJECT_Z
     lds
     add
     sts

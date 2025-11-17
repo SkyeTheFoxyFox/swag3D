@@ -8,11 +8,12 @@ defmac AssembleScript script path
     file close file
 
     call AsmTokenize tokens asm
-    call AsmEvalConst tokens2 tokens
-    call AsmValidateInstructions tokens2
-    call AsmCheckBlocks tokens2
-    call AsmParseLabels tokens3 labels tokens2
-    call AsmAssemble code tokens3 labels
+    call AsmEvalImport tokens2 tokens path
+    call AsmEvalConst tokens3 tokens2
+    call AsmValidateInstructions tokens3
+    call AsmCheckBlocks tokens3
+    call AsmParseLabels tokens4 labels tokens3
+    call AsmAssemble code tokens4 labels
     call AsmPlaceBlocks code $_ASM_currentScript
     pset script $_ASM_currentScript
     pop sub $_ASM_currentScript $_ASM_currentScript 1
@@ -30,6 +31,32 @@ defmac AsmTokenize tokens asm
             list get line line 0
             strop split line line " " 
             list append tokens line
+        end
+    end
+end
+
+defmac AsmEvalImport outTokens tokens currentPath
+    strop rematch parentPath currentPath "^.*\/|^"
+    list from outTokens
+    for list token tokens
+        list get inst token 0
+        if equal inst ".import"
+            list len instLen token
+            if lessThan instLen 2
+                error "Expected file path after instruction '.import'"
+            end
+            list get path token 1
+            strop cat path parentPath path
+            file open file path
+            file read asm file
+            file close file
+            call AsmTokenize importTokens asm
+            call AsmEvalImport importTokens2 importTokens path
+            for list importToken importTokens2
+                list append outTokens importToken
+            end
+        else
+            list append outTokens token
         end
     end
 end
