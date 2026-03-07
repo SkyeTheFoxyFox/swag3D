@@ -1,20 +1,46 @@
 import vec.sfmlib
 
-defmac GetTerrainHeight height x y
-    mac Noise heightTmp 2 0.125 x y
-    mac Noise h 4 0.25 x y
-    op add heightTmp heightTmp h
-    mac Noise h 8 0.5 x y
-    op add heightTmp heightTmp h
-    mac Noise h 16 2 x y
-    op add heightTmp heightTmp h
-    mac Noise h 32 4 x y
-    op add heightTmp heightTmp h
-    mac Noise h 64 8 x y
-    op add heightTmp heightTmp h
-    mac Noise h 128 16 x y
-    op add heightTmp heightTmp h
-    op min height heightTmp 0
+defmac GetTerrainHeight outHeight x y
+    #warp coords
+    call GetNoiseWarp warp x y 0.1
+    call ApplyNoiseWarp lx ly 2 warp x y
+
+    #mountain potency
+    call Noise region 1024 64 x y
+
+    #mountain noise
+    call PowNoise height 128 region 3 lx ly
+
+    #base noise
+    call NoiseStep height 64 4 lx ly
+    call NoiseStep height 8 0.25 lx ly
+
+    #river warp
+    op add trx x 100
+    call GetNoiseWarp rwarp trx y 0.02
+    call ApplyNoiseWarp rx ry 8 rwarp x y
+
+    #river noise
+    call RiverNoise river 900 10 13 rx ry
+
+    #river mask
+    call RiverMask riverMask height
+    op mul river river riverMask
+
+    #vertical offset
+    op sub height height 6
+
+    #apply river
+    op add height height river
+
+    #set minimum height to 0
+    op min outHeight height 0
+end
+
+defmac GetNoiseWarp warp x y mult
+    op mul lx x mult 
+    op mul ly y mult
+    op noise warp lx ly
 end
 
 defmac Noise out freq amp x y
@@ -24,6 +50,45 @@ defmac Noise out freq amp x y
     op mul out out amp
 end
 
+defmac PowNoise out freq amp power x y
+    op div lx x freq
+    op div ly y freq
+    op noise out lx ly
+    op max out out 0
+    op pow out out power
+    op mul out out amp
+end
+
+defmac RiverNoise out freq amp power x y
+    op div lx x freq
+    op div ly y freq
+    op noise out lx ly
+    op abs out out
+    op sub out 1 out
+    op pow out out power
+    op mul out out amp
+end
+
+defmac RiverMask out height
+    op div out height 12
+    op mul out out -1
+    op sub out 1 out
+    op min out out 1
+    op max out out 0
+end
+
+defmac NoiseStep out freq amp x y
+    call Noise h freq amp x y
+    op add out out h
+end
+
+defmac ApplyNoiseWarp lx ly mult warp x y
+    op mul lwarp warp mult
+    op add lx x lwarp
+    op add ly y lwarp
+end
+
+
 # Gets the texture for a tile at a given position and height
 defmac GetTile tile x y height
     
@@ -32,7 +97,9 @@ end
 defmac RenderTile x y size
     set maxDepth -1
     set depthSum 0
-    set heightSum 0
+    set minHeight 1000000
+    set maxHeight -1000000
+    op add markerID2 $markerID 1
     set i 0
     Loop:
         op add ti i 1
@@ -44,13 +111,12 @@ defmac RenderTile x y size
         op add lx lx x
         op add ly ly y
         mac GetTerrainHeight lz lx ly
-        op add heightSum heightSum lz
+        write lz $QUAD_INFO i
+        op max maxHeight maxHeight lz
+        op min minHeight minHeight lz
         op sub lx lx $PLAYER_X
         op sub ly ly $PLAYER_Y
         op sub lz lz $PLAYER_Z
-        write lx $NORM_X i
-        write ly $NORM_Y i
-        write lz $NORM_Z i
         mac ApplyRotMatrixOrigin lx ly lz rotX rotY rotZ
         op max maxDepth maxDepth rotZ
         op mul nsize size -1
@@ -59,54 +125,49 @@ defmac RenderTile x y size
         mac ProjectPoint drawX drawY rotX rotY rotZ
         mac ToScreenCoords drawX drawY drawX drawY
         op add depthSum depthSum rotZ
+        call GetLightRaw light lx ly lz
+        write light $QUAD_LIGHT i
         setmarker posi $markerID i drawX drawY
+        setmarker posi markerID2 i drawX drawY
     op add i i 1
     jump Loop lessThan i 4
     jump NoDraw lessThan maxDepth 0
     op div avgDepth depthSum 40
     op sub drawLayer 200 avgDepth
     setmarker drawLayer $markerID drawLayer
+    setmarker drawLayer markerID2 drawLayer
     setmarker world $markerID true
-    op div avgHeight heightSum 4
+    setmarker world markerID2 true
     op noise variant x y
     op add variant variant 1
     op mul variant variant 1000000
     op floor variant variant
-    jump Water equal avgHeight 0
-    jump Sand greaterThan avgHeight -1
-    jump Grass greaterThan avgHeight -10
-    Snow:
-        op mod variant variant 3
-        op add variant variant 1
-        print "snow"
-        print variant
-    jump End always
-    Grass:
-        op mod variant variant 3
-        op add variant variant 1
-        print "grass"
-        print variant
-    jump End always
-    Sand:
-        op mod variant variant 3
-        op add variant variant 1
-        print "sand-floor"
-        print variant
-    jump End always
-    Water:
-        print "deep-water"
-    End:
+    call GetTileType _ minHeight variant
     setmarker texture $markerID true
     setmarker uvi $markerID 0 0 0
     setmarker uvi $markerID 1 0 1
     setmarker uvi $markerID 2 1 1
     setmarker uvi $markerID 3 1 0
-    mac ComputeTileColor color
-    setmarker colori $markerID 0 color
-    setmarker colori $markerID 1 color
-    setmarker colori $markerID 2 color
-    setmarker colori $markerID 3 color
-    op add $markerID $markerID 1
+    call GetTileType tileHeight maxHeight variant
+    setmarker texture markerID2 true
+    setmarker uvi markerID2 0 0 0
+    setmarker uvi markerID2 1 0 1
+    setmarker uvi markerID2 2 1 1
+    setmarker uvi markerID2 3 1 0
+    set i 0
+    FadeLoop:
+        read height $QUAD_INFO i
+        select alpha lessThan height tileHeight 0 1
+        read light $QUAD_LIGHT i
+        op mul light light $lightMul
+        op add light $skyR light
+        packcolor col light light light alpha
+        packcolor col2 light light light 1
+        setmarker colori $markerID i col2
+        setmarker colori markerID2 i col
+    op add i i 1
+    jump FadeLoop lessThan i 4
+    op add $markerID $markerID 2
     NoDraw:
 end
 
@@ -121,11 +182,9 @@ defmac RenderTerrain
             read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
             read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
             read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
-            read $SUN_X $COMM_CELL $COMM_SUN_X
-            read $SUN_Y $COMM_CELL $COMM_SUN_Y
-            read $SUN_Z $COMM_CELL $COMM_SUN_Z
-            read $SUN_LIGHT $COMM_CELL $COMM_SUN_LIGHT
-            read $AMBIANT_LIGHT $COMM_CELL $COMM_AMBIANT_LIGHT
+            read skylightCol $COMM_CELL $COMM_SKYLIGHT
+            unpackcolor $skyR $skyG $skyB _ skylightCol 
+            op sub $lightMul 1 $skyR
             set $stackPointer 0
 
             call ReadRotMatrix
@@ -163,8 +222,8 @@ defmac RenderTerrain
             jump RenderLoop always
             Exit:
             write $markerID $COMM_CELL $COMM_MARKER_ID
-            print $markerID
-            message mission
+            #print $markerID
+            #message mission
         jump Loop always
     end
 end
@@ -197,4 +256,43 @@ defmac ComputeTileColor color
     op mul light light tempLight
     op add light light $AMBIANT_LIGHT
     packcolor color light light light 1
+end
+
+defmac GetTileType out height variant
+    jump Water equal height 0
+    jump Sand greaterThan height -1
+    jump Grass greaterThan height -15
+    jump Stone greaterThan height -25
+    Snow:
+        set out -10000
+        op mod v variant 3
+        op add v v 1
+        print "snow"
+        print v
+    jump End always
+    Stone:
+        set out -25
+        op mod v variant 3
+        op add v v 1
+        print "stone"
+        print v
+    jump End always
+    Grass:
+        set out -15
+        op mod v variant 3
+        op add v v 1
+        print "grass"
+        print v
+    jump End always
+    Sand:
+        set out -1
+        op mod v variant 3
+        op add v v 1
+        print "sand-floor"
+        print v
+    jump End always
+    Water:
+        set out 0
+        print "deep-water"
+    End:
 end

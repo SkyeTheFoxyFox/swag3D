@@ -46,7 +46,7 @@ defmac HandleAxe
                     #create item
                     op sub itemZ pz 0.5 
                     call GetPropType itemModel px py pz
-                    call CreateObject item px py itemZ 0 itemModel 0.2 $OBJECT_ITEM
+                    call CreateObject item px py itemZ 0 itemModel 0.2 $scriptItem
                     write itemZ $OBJECT_DATA0 item
                     write 0 $OBJECT_DATA1 item
 

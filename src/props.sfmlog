@@ -27,7 +27,7 @@ defmac GetPropType type x y z
     op mul propMod propMod 1000000
     op floor propMod propMod
     jump Sand greaterThan z -1
-    jump Grass greaterThan z -10
+    jump Grass greaterThan z -20
     Snow:
         set type $objSnowRock
         jump EndCase always
@@ -48,7 +48,7 @@ end
 
 defmac RenderProps
     proc
-        setrate 12000
+        setrate 200000
         Loop:
             wait 1e-4
             read $PLAYER_X $COMM_CELL $COMM_PLAYER_X

@@ -38,11 +38,9 @@ defmac RenderObjs
             read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
             read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
             read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
-            read $SUN_X $COMM_CELL $COMM_SUN_X
-            read $SUN_Y $COMM_CELL $COMM_SUN_Y
-            read $SUN_Z $COMM_CELL $COMM_SUN_Z
-            read $SUN_LIGHT $COMM_CELL $COMM_SUN_LIGHT
-            read $AMBIANT_LIGHT $COMM_CELL $COMM_AMBIANT_LIGHT
+            read skylightCol $COMM_CELL $COMM_SKYLIGHT
+            unpackcolor $skyR $skyG $skyB _ skylightCol 
+            op sub $lightMul 1 $skyR
             read $queueCount $COMM_CELL $COMM_OBJ_QUEUE_POINTER
             set $queuePointer 0
             set $objTask $OBJ_TASK_ROTATE
@@ -91,6 +89,12 @@ defmac RenderObjs
                     op add lx lx $objX
                     op add ly ly $objY
                     op add lz lz $objZ
+                    op floor flx lx
+                    op floor fly ly
+                    op floor flz lz
+                    write flx $OBJ_CACHE_RAW_X $taskProgress
+                    write fly $OBJ_CACHE_RAW_Y $taskProgress
+                    write flz $OBJ_CACHE_RAW_Z $taskProgress
                     call ApplyRotMatrixOrigin lx ly lz rotX rotY rotZ
                     op max drawZ rotZ 0.01
                     call ProjectPoint drawX drawY rotX rotY drawZ
@@ -145,11 +149,43 @@ defmac RenderObjs
                     setmarker uvi $markerID 1 0 1
                     setmarker uvi $markerID 2 1 1
                     setmarker uvi $markerID 3 1 0
-                    mac ComputeObjFaceColor color face0 face1 face2
-                    setmarker colori $markerID 0 color
-                    setmarker colori $markerID 1 color
-                    setmarker colori $markerID 2 color
-                    setmarker colori $markerID 3 color
+
+                    read rx $OBJ_CACHE_RAW_X face0
+                    read ry $OBJ_CACHE_RAW_Y face0
+                    read rz $OBJ_CACHE_RAW_Z face0
+                    call GetLightRaw light rx ry rz
+                    op mul light light $lightMul
+                    op add light $skyR light
+                    packcolor col light light light 1
+                    setmarker colori $markerID 0 col
+
+                    read rx $OBJ_CACHE_RAW_X face1
+                    read ry $OBJ_CACHE_RAW_Y face1
+                    read rz $OBJ_CACHE_RAW_Z face1
+                    call GetLightRaw light rx ry rz
+                    op mul light light $lightMul
+                    op add light $skyR light
+                    packcolor col light light light 1
+                    setmarker colori $markerID 1 col
+
+                    read rx $OBJ_CACHE_RAW_X face2
+                    read ry $OBJ_CACHE_RAW_Y face2
+                    read rz $OBJ_CACHE_RAW_Z face2
+                    call GetLightRaw light rx ry rz
+                    op mul light light $lightMul
+                    op add light $skyR light
+                    packcolor col light light light 1
+                    setmarker colori $markerID 2 col
+
+                    read rx $OBJ_CACHE_RAW_X face3
+                    read ry $OBJ_CACHE_RAW_Y face3
+                    read rz $OBJ_CACHE_RAW_Z face3
+                    call GetLightRaw light rx ry rz
+                    op mul light light $lightMul
+                    op add light $skyR light
+                    packcolor col light light light 1
+                    setmarker colori $markerID 3 col
+
                     op add zSum z0 z1
                     op add zSum zSum z2
                     op add zSum zSum z3

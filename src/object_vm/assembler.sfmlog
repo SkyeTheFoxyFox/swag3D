@@ -1,8 +1,20 @@
 import ins_util.sfmlog
 import instructions.sfmlog
 
+defmac AssemblerInit
+    table from $_ASM_defaultConsts
+    for table key value $objs
+        strop cat name "OBJ_" key
+        strop cat valueStr value 
+        table set $_ASM_defaultConsts valueStr name
+    end
+end
+
+table from $_ASM_scripts
 pset $_ASM_currentScript $ASM_CODE_START_Y
-defmac AssembleScript script path
+defmac AssembleScript script path name
+    strop cat msg "Assembling script: '" path "'"
+    mac LogInfo msg
     file open file path
     file read asm file
     file close file
@@ -17,6 +29,7 @@ defmac AssembleScript script path
     call AsmPlaceBlocks code $_ASM_currentScript
     pset script $_ASM_currentScript
     pop sub $_ASM_currentScript $_ASM_currentScript 1
+    table set $_ASM_scripts script name
 end
 
 defmac AsmTokenize tokens asm
@@ -63,7 +76,7 @@ end
 
 defmac AsmEvalConst outTokens tokens
     list from outTokens
-    table from consts
+    table copy consts $_ASM_defaultConsts
     for list token tokens
         list get inst token 0
         if equal inst ".const"
@@ -76,6 +89,9 @@ defmac AsmEvalConst outTokens tokens
                 error "Expected value for constant '" constName "'"
             end
             list get constValue token 2
+            if in consts constValue
+                table get constValue consts constValue
+            end
             if greaterThan instLen 3
                 list get nextArg token 3
                 error "Unexpected text '" nextArg "[...]' after constant definition '" inst constName constValue "'"

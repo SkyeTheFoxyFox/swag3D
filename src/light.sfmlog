@@ -1,0 +1,192 @@
+
+pset $LIGHT_AREA 32
+pset $LIGHT_MEMCELL @world-cell
+pset $LIGHT_CELL_SIZE 512
+pset $LIGHT_MEM_X 5
+pset $LIGHT_MEM_Y 197
+
+pset $MIN_LIGHT_THRESHOLD 0.1
+
+pop div $LIGHT_AREA_HALF $LIGHT_AREA 2
+pop sub $LIGHT_AREA_HALF_DOWN $LIGHT_AREA_HALF 1
+pop mul $LIGHT_AREA_HALF_DOWN $LIGHT_AREA_HALF_DOWN -1
+
+
+proc
+    pop pow cellCount $LIGHT_AREA 3
+    pop div cellCount cellCount $LIGHT_CELL_SIZE
+    pop ceil cellCount cellCount
+    for range x cellCount
+        pop add cellX x $LIGHT_MEM_X
+        setblock block $LIGHT_MEMCELL cellX $LIGHT_MEM_Y @sharded 
+    end
+    stop
+end
+
+defmac GetLightCellFromIndex cell cellIndex index
+    op idiv cellX index $LIGHT_CELL_SIZE
+    op add cellX cellX $LIGHT_MEM_X
+    op mod cellIndex index $LIGHT_CELL_SIZE
+    getblock building cell cellX $LIGHT_MEM_Y
+end
+
+defmac WriteLightMemRaw value index
+    call GetLightCellFromIndex cell cellIndex index
+    write value cell cellIndex
+end
+
+defmac ReadLightMemRaw value index
+    call GetLightCellFromIndex cell cellIndex index
+    read value cell cellIndex
+end
+
+defmac GetLightIndexFromPos index x y z
+    op sub tx x $LIGHT_AREA_HALF_DOWN
+    op sub ty y $LIGHT_AREA_HALF_DOWN
+    op sub tz z $LIGHT_AREA_HALF_DOWN
+    pop mul squareLightArea $LIGHT_AREA $LIGHT_AREA
+    op mul ty ty $LIGHT_AREA
+    op mul tz tz squareLightArea
+    op add index tx ty
+    op add index index tz
+end
+
+defmac WriteLightMem value x y z
+    call GetLightIndexFromPos index x y z
+    call WriteLightMemRaw value index
+end
+
+defmac ReadLightMem value x y z
+    call GetLightIndexFromPos index x y z
+    call ReadLightMemRaw value index
+end
+
+defmac ComputeLightIntensity intensity x y z lx ly lz power
+    op sub tx x lx
+    op sub ty y ly
+    op sub tz z lz
+    op len dist tx ty
+    op len dist dist tz
+    op pow squareDist dist 2
+    op div intensity power squareDist
+    select intensity strictEqual intensity null 1000000 intensity
+    select intensity lessThan intensity $MIN_LIGHT_THRESHOLD 0 intensity
+end
+
+defmac ComputeRequiredLightPower power radius
+    op pow r radius 2
+    op mul power r $MIN_LIGHT_THRESHOLD
+end
+
+defmac ApplyLight x y z radius px py pz
+    #loop over all cells of the cube that bounds the light's area
+    # compute the effect of the light on that cell
+    # if that cell's current effect in less than the value in the cell ignore it
+    # else overwrite the valuewith the new one
+
+    op sub tx x px
+    op sub ty y py
+    op sub tz z pz
+
+    op floor tx tx
+    op floor ty ty
+    op floor tz tz
+
+    op sub minX tx radius
+    op max minX minX $LIGHT_AREA_HALF_DOWN
+
+    op sub minY ty radius
+    op max minY minY $LIGHT_AREA_HALF_DOWN
+
+    op sub minZ tz radius
+    op max minZ minZ $LIGHT_AREA_HALF_DOWN
+
+    op add maxX tx radius
+    op min maxX maxX $LIGHT_AREA_HALF
+
+    op add maxY ty radius
+    op min maxY maxY $LIGHT_AREA_HALF
+
+    op add maxZ tz radius
+    op min maxZ maxZ $LIGHT_AREA_HALF
+
+    print "{0}, {0}"
+    format minZ
+    format maxZ
+    message mission
+
+    call ComputeRequiredLightPower power radius
+    jump Exit lessThanEq maxX minX
+    jump Exit lessThanEq maxY minY
+    jump Exit lessThanEq maxZ minZ
+    set ix minX
+    LoopX:
+        set iy minY
+        LoopY:
+            set iz minZ
+            LoopZ:
+                call ComputeLightIntensity intensity ix iy iz tx ty tz power
+                call GetLightIndexFromPos index ix iy iz
+                call GetLightCellFromIndex cell cellIndex index
+                read curIntensity cell cellIndex
+                jump Skip lessThan intensity curIntensity
+                    write intensity cell cellIndex
+                Skip:
+            op add iz iz 1
+            jump LoopZ lessThanEq iz maxZ
+        op add iy iy 1
+        jump LoopY lessThanEq iy maxY
+    op add ix ix 1
+    jump LoopX lessThanEq ix maxX
+    Exit:
+end
+
+defmac GetLightRaw light x y z
+    set light 0
+    op floor tx x
+    jump No greaterThan tx $LIGHT_AREA_HALF
+    jump No lessThan tx $LIGHT_AREA_HALF_DOWN
+    op floor ty y
+    jump No greaterThan ty $LIGHT_AREA_HALF
+    jump No lessThan ty $LIGHT_AREA_HALF_DOWN
+    op floor tz z
+    jump No greaterThan tz $LIGHT_AREA_HALF
+    jump No lessThan tz $LIGHT_AREA_HALF_DOWN
+    call ReadLightMem light tx ty tz
+    No:
+end
+
+defmac GetLight light x y z px py pz
+    set light 0
+    op sub tx x px
+    op floor tx tx
+    jump No greaterThan tx $LIGHT_AREA_HALF
+    jump No lessThan tx $LIGHT_AREA_HALF_DOWN
+    op sub ty y py
+    op floor ty ty
+    jump No greaterThan ty $LIGHT_AREA_HALF
+    jump No lessThan ty $LIGHT_AREA_HALF_DOWN
+    op sub tz z pz
+    op floor tz tz
+    jump No greaterThan tz $LIGHT_AREA_HALF
+    jump No lessThan tz $LIGHT_AREA_HALF_DOWN
+    call ReadLightMem light tx ty tz
+    No:
+end
+
+defmac ClearLightMem
+    pop pow cellCount $LIGHT_AREA 3
+    pop div cellCount cellCount $LIGHT_CELL_SIZE
+    pop ceil cellCount cellCount
+    set x 0
+    CellLoop:
+        op add cellX x $LIGHT_MEM_X
+        getblock building cell cellX $LIGHT_MEM_Y
+        set i 0
+        IndexLoop:
+            write 0 cell i
+        op add i i 1
+        jump IndexLoop lessThan i $LIGHT_CELL_SIZE
+    op add x x 1
+    jump CellLoop lessThan x cellCount
+end

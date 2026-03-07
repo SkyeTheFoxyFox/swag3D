@@ -73,10 +73,11 @@ defmac RenderQuadStaticTexture id x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4 texture
     setmarker texture id false texture
 end
 
+table from $objs
 pset $objPos 194
 pset $objCount 0
 list from $materials
-defmac InitObj obj path
+defmac InitObj obj path name
     strop cat msg "Loading model: '" path "'"
     mac LogInfo msg
     pop add $objCount $objCount 1
@@ -155,6 +156,7 @@ defmac InitObj obj path
         stop
     end
     pset obj $INITOBJ_obj
+    table set $objs obj name
 end
 
 defmac CacheMaterials

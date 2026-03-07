@@ -13,6 +13,7 @@ import object_vm/assembler.sfmlog
 
 import matrix.sfmlog
 
+import light.sfmlog
 import ui.sfmlog
 import terrain.sfmlog
 import items.sfmlog
@@ -28,15 +29,20 @@ defmac Lerp out in0 in1 t
 end
 
 #load models
-call InitObj $objTree "../models/tree.obj"
-call InitObj $objSnowRock "../models/snow_rock.obj"
-call InitObj $objSandCastle "../models/sand_castle.obj"
-call InitObj $objTube "../models/tube.obj"
-call InitObj $iconDebug "../models/icons/debug.obj"
-call InitObj $iconHammer "../models/icons/hammer.obj"
+call InitObj $objTree "../models/tree.obj" "tree"
+call InitObj $objSnowRock "../models/snow_rock.obj" "snow_rock"
+call InitObj $objSandCastle "../models/sand_castle.obj" "sand_castle"
+call InitObj $objTube "../models/tube.obj" "tube"
+call InitObj $objRouter "../models/router.obj" "router"
+call InitObj $iconDebug "../models/icons/debug.obj" "iconDebug"
+call InitObj $iconHammer "../models/icons/hammer.obj" "iconHammer"
 call CacheMaterials
 
+call AssemblerInit
 call AssembleScript $scriptProjectile "../vm_scripts/projectile.asm"
+call AssembleScript $scriptItem "../vm_scripts/item.asm"
+call AssembleScript $scriptEnemy "../vm_scripts/enemy.asm"
+call AssembleScript $scriptPlayer "../vm_scripts/player.asm"
 
 #init
 proc
@@ -55,6 +61,8 @@ proc
         setmarker world i false
     op add i i 1
     jump ResetLoop lessThan i 10000
+    call CreateObject _ 5 5 0 0 $objRouter 0.5 $scriptEnemy
+    call CreateObject _ 5 5 0 0 null 1 $scriptPlayer
     stop
 end
 
@@ -341,12 +349,13 @@ defmac DrawBackground skylight
     setmarker colori $MARKER_BACKGROUND 2 topColor
     setmarker colori $MARKER_BACKGROUND 3 topColor
 
+    setmarker texture $MARKER_BACKGROUND false "blank"
     setmarker world $MARKER_BACKGROUND true
 end
 
 #init frame
 proc
-    setrate 1000
+    setrate 1000000
     write $ITEM_AXE $INV_TYPE 0
     write $ITEM_GUN $INV_TYPE 1
     set oldTime @second
@@ -380,38 +389,23 @@ proc
         write 0 $COMM_CELL $COMM_PROP_PROGRESS
         write 0 $COMM_CELL $COMM_ICON_QUEUE_POINTER
 
-        op mul dayInc dt 6
+        op mul dayInc dt 0.5
         op add dayTime dayTime dayInc
-        op sin sunHeight dayTime
-        op mod halfdayTime dayTime 180
 
-        op add sunlight sunHeight 1
-        op div sunlight sunlight 2
-        pop sub nightlight $SUNLIGHT_MAX $SUNLIGHT_MIN
-        op mul sunlight sunlight nightlight
-        #op add sunlight sunlight $SUNLIGHT_MIN
-        op max sunlight sunlight $SUNLIGHT_MIN_CLAMP
-        op mul ambiantLight sunlight $AMBIANT_LIGHT_MULT
-
-        op add skylight sunHeight 1
-        op div skylight skylight 2
-        pop sub helllight 1 -0.5
-        op mul skylight skylight helllight
-        op add skylight skylight -0.5
+        op cos skylight dayTime
         op max skylight skylight 0
+        op mul skylight skylight 2
+        op mul skylightGround skylight 0.85
+        op add skylightGround skylightGround 0.15
+        packcolor skylightCol skylightGround skylightGround skylightGround 1
 
-        op sin moonZ halfdayTime
-        op cos moonX halfdayTime
-        op mul sunZ moonZ -1
-        op mul sunX moonX -1
+        write skylightCol $COMM_CELL $COMM_SKYLIGHT
 
-        write sunX $COMM_CELL $COMM_SUN_X
-        write 0 $COMM_CELL $COMM_SUN_Y
-        write sunZ $COMM_CELL $COMM_SUN_Z
-        write sunlight $COMM_CELL $COMM_SUN_LIGHT
-        write ambiantLight $COMM_CELL $COMM_AMBIANT_LIGHT
+        op min skylight skylight 1
 
         call DrawBackground skylight
+
+        call ClearLightMem
     jump Loop always
 end
 

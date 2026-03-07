@@ -110,48 +110,48 @@ end
 call AddInstruction "stbl" stbl 2
 
 defmac jlt
+    call AsmReadValue addr
     jump End greaterThanEq $_ASM_registerA $_ASM_registerX
-    read addr $_ASM_currentCodeCell $_ASM_execPointer
     set $_ASM_execPointer addr
     End:
 end
 call AddInstruction "jlt" jlt 2 true
 
 defmac jgt
+    call AsmReadValue addr
     jump End lessThanEq $_ASM_registerA $_ASM_registerX
-    read addr $_ASM_currentCodeCell $_ASM_execPointer
     set $_ASM_execPointer addr
     End:
 end
 call AddInstruction "jgt" jgt 2 true
 
 defmac jle
+    call AsmReadValue addr
     jump End greaterThan $_ASM_registerA $_ASM_registerX
-    read addr $_ASM_currentCodeCell $_ASM_execPointer
     set $_ASM_execPointer addr
     End:
 end
 call AddInstruction "jle" jle 2 true
 
 defmac jge
+    call AsmReadValue addr
     jump End lessThan $_ASM_registerA $_ASM_registerX
-    read addr $_ASM_currentCodeCell $_ASM_execPointer
     set $_ASM_execPointer addr
     End:
 end
 call AddInstruction "jge" jge 2 true
 
 defmac jeq
+    call AsmReadValue addr
     jump End notEqual $_ASM_registerA $_ASM_registerX
-    read addr $_ASM_currentCodeCell $_ASM_execPointer
     set $_ASM_execPointer addr
     End:
 end
 call AddInstruction "jeq" jeq 2 true
 
 defmac jne
+    call AsmReadValue addr
     jump End equal $_ASM_registerA $_ASM_registerX
-    read addr $_ASM_currentCodeCell $_ASM_execPointer
     set $_ASM_execPointer addr
     End:
 end
@@ -400,3 +400,16 @@ call AddInstruction "die" die 1
 defmac trn
     call GetTerrainHeight $_ASM_registerA $_ASM_registerA $_ASM_registerX
 end
+call AddInstruction "trn" trn 1
+
+defmac lht
+    read px $COMM_CELL $COMM_PLAYER_X
+    read py $COMM_CELL $COMM_PLAYER_Y
+    read pz $COMM_CELL $COMM_PLAYER_Z
+    read x $OBJECT_X $_ASM_objectID
+    read y $OBJECT_Y $_ASM_objectID
+    read z $OBJECT_Z $_ASM_objectID
+    call ApplyLight x y z $_ASM_registerA px py pz
+end
+
+call AddInstruction "lht" lht 1

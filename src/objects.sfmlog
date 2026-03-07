@@ -1,9 +1,10 @@
 import object_vm/executor.sfmlog
 
-pset $OBJECT_PROJECTILE 194
-pset $OBJECT_ITEM 1
+pset $ASM_G_PLAYER_X 3072
+pset $ASM_G_PLAYER_Y 3073
+pset $ASM_G_PLAYER_Z 3074
 
-defmac CreateObject object x y z rotation model size type
+defmac CreateObject object x y z rotation model size script
     call Malloc $OBJECT_MALLOC object
     jump Fail equal object -1
     write x $OBJECT_X object
@@ -12,7 +13,7 @@ defmac CreateObject object x y z rotation model size type
     write rotation $OBJECT_ROTATION object
     write model $OBJECT_MODEL object
     write size $OBJECT_SIZE object
-    write type $OBJECT_TYPE object
+    write script $OBJECT_SCRIPT object
 
     write -1 $OBJECT_FORWARD_POINTER object
 
@@ -81,49 +82,12 @@ defmac RemoveObject object
     call Free $OBJECT_MALLOC object
 end
 
-defmac UpdateObjectProjectile object x y z rot
-    read life $OBJECT_DATA0 object
-    read dx $OBJECT_DATA1 object
-    read dy $OBJECT_DATA2 object
-    read dz $OBJECT_DATA3 object
-
-    op add x x dx
-    op add y y dy
-    op add z z dz
-
-    op sub life life 1
-    jump NotDead greaterThan life 0
-        call RemoveObject object
-        jump End always
-    NotDead:
-
-    write x $OBJECT_X object
-    write y $OBJECT_Y object
-    write z $OBJECT_Z object
-    write life $OBJECT_DATA0 object
-    End:
-end
-
-defmac UpdateObjectItem object x y z rot
-    read itemZ $OBJECT_DATA0 object
-    read t $OBJECT_DATA1 object
-
-    op mul zOffset t 2
-    op sin zOffset zOffset
-    op mul zOffset zOffset 0.25
-    op add z itemZ zOffset
-    write z $OBJECT_Z object
-    write t $OBJECT_ROTATION object
-
-    op add t t 1
-    write t $OBJECT_DATA1 object
-end
-
 defmac UpdateObjects
     proc
-        setrate 300000
+        setrate 1000000
         Loop:
             wait 1e-4
+            call ObjectSetAsmGlobals
             read object $COMM_CELL $COMM_FIRST_OBJECT
             jump NoUpdate equal object -1
             ListLoop:
@@ -133,12 +97,23 @@ defmac UpdateObjects
                 read rotation $OBJECT_ROTATION object
                 read model $OBJECT_MODEL object
                 read size $OBJECT_SIZE object
-                read type $OBJECT_TYPE object
+                read script $OBJECT_SCRIPT object
+                call AsmExecutor object script
                 call QueueModel model x y z rotation size
-                call AsmExecutor object type
                 read object $OBJECT_FORWARD_POINTER object
             jump ListLoop notEqual object -1
             NoUpdate:
         jump Loop always
     end
+end
+
+defmac ObjectSetAsmGlobals
+    call ObjectSetAsmGlobal $COMM_PLAYER_X $ASM_G_PLAYER_X
+    call ObjectSetAsmGlobal $COMM_PLAYER_Y $ASM_G_PLAYER_Y
+    call ObjectSetAsmGlobal $COMM_PLAYER_Z $ASM_G_PLAYER_Z
+end
+
+defmac ObjectSetAsmGlobal commIndex globalIndex
+    read value $COMM_CELL commIndex
+    write value $ASM_GLOBAL_MEM globalIndex
 end

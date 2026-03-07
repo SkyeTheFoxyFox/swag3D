@@ -15,7 +15,7 @@ defmac AddInstruction name code size hasLabel
     if strictEqual hasLabel null
         pset hasLabel false
     end
-    if in name $_OBJ_ASM_instructionTable
+    if in $_OBJ_ASM_instructionTable name
     else
         table from inst "name" name "id" $_OBJ_ASM_currentInstructionCount "code" code "size" size "hasLabel" hasLabel
         pop add $_OBJ_ASM_currentInstructionCount $_OBJ_ASM_currentInstructionCount 1
