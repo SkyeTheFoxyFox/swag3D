@@ -1,1 +1,26 @@
 import terrain_define.sfmlog
+
+call BiomeDefine $biomeOcean
+    call BiomeTerrain 0 0 0 0 -10
+    call BiomeLayer "deep-water" 0
+call BiomeEnd
+
+call BiomeDefine $biomeGrasslands
+    call BiomeTerrain 64 4 12 10 6
+    call BiomeLayer "deep-water" 0
+    call BiomeLayer "sand-floor1" 1
+    call BiomeLayer "grass1" 2
+    call BiomeLayer "stone1" 16
+    call BiomeLayer "snow1" 26
+call BiomeEnd
+
+call BiomeDefine $biomeSporelands
+    call BiomeTerrain 64 4 12 10 6
+    call BiomeLayer "tainted-water" 0
+    call BiomeLayer "darksand1" 1
+    call BiomeLayer "moss1" 2
+    call BiomeLayer "stone1" 16
+    call BiomeLayer "snow1" 26
+call BiomeEnd
+
+call FlushBiomes

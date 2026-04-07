@@ -1,9 +1,4 @@
 terrain system:
-    reduce terrain height cost somehow:
-        idk how to make terrain like layered noise without layering noise
-    rom defined terrain layers:
-        each possible texture layer from 0 to whatever the max block ID is are written directly in a processor
-        faster than if else chains, and modular
     biomes:
         different biomes, each with their own texture rom, props, and terrain scale properties (these should blend ideally)
 
@@ -15,13 +10,18 @@ UI:
     Crafting:
         idk how, but it's needed
 
+Base Building System:
+    set tiles, in a build tool. kinda like raft
+    1000 total tiles max
+    special tiles:
+        workbench
+        chests
+        other machines
+    special tiles don't count towards max, they have their own caps
+
 Held Item Rendering:
     A custom model for each item when in hand
     Pre-sorted (or entirely pre-computed?) and rendered just under the UI
-
-Objects:
-    Make objects run VM code:
-        sfmlog based assembler for parsing VM assembly
 
 Content:
     Items:

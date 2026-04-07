@@ -1,35 +1,73 @@
-pset maxLayer 128
+pset $_TERRAIN_maxLayer 128
+
+pset $BIOME_CELL_MOUNTAIN_HEIGHT 0
+pset $BIOME_CELL_HILL_HEIGHT 1
+pset $BIOME_CELL_RIVER_DEPTH 2
+pset $BIOME_CELL_RIVER_HEIGHT_THRESHOLD 3
+pset $BIOME_CELL_HEIGHT_OFFSET 4
 
 list from $_TERRAIN_biomes
 
-defmac BiomeDefine name
+pset $_TERRAIN_biomeIndex 0
+defmac BiomeDefine var
     pset $_TERRAIN_currentLayer 0
     list from $_TERRAIN_layers
-    for range _ maxLayer
+    for range _ $_TERRAIN_maxLayer
         list append $_TERRAIN_layers "error"
     end
-    table from $_TERRAIN_tempBiome "name" name "scale" 1 "offset" 0
+    table from $_TERRAIN_tempBiome
+    pset var $_TERRAIN_biomeIndex
 end
 
 defmac BiomeEnd
+    table set $_TERRAIN_tempBiome $_TERRAIN_layers "layers"
     list append $_TERRAIN_biomes $_TERRAIN_tempBiome
+    pop add $_TERRAIN_biomeIndex $_TERRAIN_biomeIndex 1
 end
 
-defmac BiomeTexture texture firstLayer
-    if greaterThanEq firstLayer maxLayer
+defmac BiomeLayer texture firstLayer
+    if greaterThanEq firstLayer $_TERRAIN_maxLayer
         error "texture layer above max layer"
     end
-    for range i firstLayer maxLayer
-        list set $_TERRAIN_layers texture index
+    for range i firstLayer $_TERRAIN_maxLayer
+        list set $_TERRAIN_layers texture i
     end
 end
 
-defmac BiomeScale scale
-    table set $_TERRAIN_tempBiome scale "scale"
+defmac BiomeTerrain mountainHeight hillHeight riverDepth riverHeightThreshold heightOffset
+    table set $_TERRAIN_tempBiome mountainHeight "mountainHeight"
+    table set $_TERRAIN_tempBiome hillHeight "hillHeight"
+    table set $_TERRAIN_tempBiome riverDepth "riverDepth"
+    table set $_TERRAIN_tempBiome riverHeightThreshold "riverHeightThreshold"
+    table set $_TERRAIN_tempBiome heightOffset "heightOffset"
 end
 
-defmac BiomeOffset offset
-    table set $_TERRAIN_tempBiome offset "offset"
+defmac FlushBiomes
+    for enumerate i $_TERRAIN_biome $_TERRAIN_biomes
+        #layer lookup proc
+        table get $_TERRAIN_layers $_TERRAIN_biome "layers"
+        proc _ @world-processor i -4
+            for enumerate i texture $_TERRAIN_layers
+                list get varName $ID_LOOKUP i
+                table get varName varName "name"
+                strvar unscoped variable varName
+                set variable texture
+            end
+            stop
+        end
+        #bulk data cell
+        block $_TERRAIN_cell @world-cell i -5
+        proc
+            table get mountainHeight $_TERRAIN_biome "mountainHeight"
+            write mountainHeight $_TERRAIN_cell $BIOME_CELL_MOUNTAIN_HEIGHT
+            table get hillHeight $_TERRAIN_biome "hillHeight"
+            write hillHeight $_TERRAIN_cell $BIOME_CELL_HILL_HEIGHT
+            table get riverDepth $_TERRAIN_biome "riverDepth"
+            write riverDepth $_TERRAIN_cell $BIOME_CELL_RIVER_DEPTH
+            table get riverHeightThreshold $_TERRAIN_biome "riverHeightThreshold"
+            write riverHeightThreshold $_TERRAIN_cell $BIOME_CELL_RIVER_HEIGHT_THRESHOLD
+            table get heightOffset $_TERRAIN_biome "heightOffset"
+            write heightOffset $_TERRAIN_cell $BIOME_CELL_HEIGHT_OFFSET
+        end
+    end
 end
-
-#defmac _TERRAIN_FlushBiomes

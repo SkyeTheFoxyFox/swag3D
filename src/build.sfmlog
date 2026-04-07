@@ -1,0 +1,103 @@
+
+pset $MAX_BUILDS 100
+
+pset $COLLISION_NONE 0
+pset $COLLISION_FULL 1
+pset $COLLISION_HALF 2
+pset $COLLISION_FLAT 3
+pset $COLLISION_SLOPE 4
+
+pset $_BUILD_buildCount 1
+defmac DefBuild model collisionType
+    write model $BUILD_ROM_MODEL $_BUILD_buildCount
+    write collisionType $BUILD_ROM_COLLISION $_BUILD_buildCount
+    pop add $_BUILD_buildCount $_BUILD_buildCount 1
+end
+
+defmac InitBuilds
+    proc
+        setrate 100000
+        call DefBuild $objBuildBasicFloor 0
+        call DefBuild $objBuildBasicFloorEdge 0
+        call DefBuild $objBuildBasicFloorCorner 0
+        call DefBuild $objBuildWoodPillars 0
+        call DefBuild $objBuildWoodFloor 0
+        call DefBuild $objBuildWoodRamp 0
+        stop
+    end
+end
+
+defmac CheckCollision
+
+end
+
+defmac EvalCollision type
+
+end
+
+defmac RenderBuild index
+    read type $BUILD_TYPE index
+    read model $BUILD_ROM_MODEL type
+    read x $BUILD_X index
+    read y $BUILD_Y index
+    read z $BUILD_Z index
+    read rotation $BUILD_ROTATION index
+    call QueueModel model x y z rotation 1
+end
+
+defmac RenderBuilds
+    proc
+        setrate 100000
+        Loop:
+            wait 1e-4
+            call ForEachBuild RenderBuild
+        jump Loop always
+    end
+end
+
+defmac PlaceBuild type x y z rot
+    call GetBuild idx x y z
+    jump Blocked greaterThanEq idx 0
+        call Malloc $BUILD_MALLOC build
+        write type $BUILD_TYPE build
+        write x $BUILD_X build
+        write y $BUILD_Y build
+        write z $BUILD_Z build
+        write rot $BUILD_ROTATION build
+    Blocked:
+end
+
+defmac RemoveBuild x y z
+    call GetBuild idx x y z
+    jump NoBuild lessThan idx 0
+        write 0 $BUILD_TYPE idx
+        call Free $BUILD_MALLOC idx
+    NoBuild:
+end
+
+defmac GetBuild out x y z
+    set out -1
+    defmac Check i out x y z
+        read bx $BUILD_X i
+        jump No notEqual bx x
+        read by $BUILD_Y i
+        jump No notEqual by y
+        read bz $BUILD_Z i
+        jump No notEqual bz z
+            set out i
+        No:
+    end
+    call ForEachBuild Check out x y z
+end
+
+#bad but lazy
+defmac ForEachBuild call args...
+    set i 0
+    Loop:
+        read type $BUILD_TYPE i
+        jump Exit equal type 0
+            call call i args...
+        Exit:
+    op add i i 1
+    jump Loop lessThan i $MAX_BUILDS
+end

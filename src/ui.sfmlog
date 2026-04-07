@@ -16,6 +16,10 @@ defmac ItemIcon icon item
         set icon $iconHammer
     jump ExitCase always
         set icon $iconDebug
+    jump ExitCase always
+        set icon $iconDebug
+    jump ExitCase always
+        set icon $iconDebug
     ExitCase:
 end
 

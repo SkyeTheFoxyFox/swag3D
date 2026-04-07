@@ -10,6 +10,7 @@ import render.sfmlib
 import malloc.sfmlib
 import utils.sfmlog
 import object_vm/assembler.sfmlog
+import terrain_rom.sfmlog
 
 import matrix.sfmlog
 
@@ -20,6 +21,7 @@ import items.sfmlog
 import props.sfmlog
 import objects.sfmlog
 import render_stuff.sfmlog
+import build.sfmlog
 call LogInfo "Finished imports"
 
 defmac Lerp out in0 in1 t
@@ -31,9 +33,19 @@ end
 #load models
 call InitObj $objTree "../models/tree.obj" "tree"
 call InitObj $objSnowRock "../models/snow_rock.obj" "snow_rock"
+call InitObj $objRock "../models/rock.obj" "rock"
 call InitObj $objSandCastle "../models/sand_castle.obj" "sand_castle"
 call InitObj $objTube "../models/tube.obj" "tube"
 call InitObj $objRouter "../models/router.obj" "router"
+
+call InitObj $objRemoveBuild "../models/remove_build.obj" "remove_build"
+call InitObj $objBuildBasicFloor "../models/build_basic_floor.obj" "build_basic_floor"
+call InitObj $objBuildBasicFloorEdge "../models/build_basic_floor_edge.obj" "build_basic_floor_edge"
+call InitObj $objBuildBasicFloorCorner "../models/build_basic_floor_corner.obj" "build_basic_floor_corner"
+call InitObj $objBuildWoodPillars "../models/build_wood_pillars.obj" "build_wood_pillars"
+call InitObj $objBuildWoodFloor "../models/build_wood_floor.obj" "build_wood_floor"
+call InitObj $objBuildWoodRamp "../models/build_wood_ramp.obj" "build_wood_ramp"
+
 call InitObj $iconDebug "../models/icons/debug.obj" "iconDebug"
 call InitObj $iconHammer "../models/icons/hammer.obj" "iconHammer"
 call CacheMaterials
@@ -44,12 +56,15 @@ call AssembleScript $scriptItem "../vm_scripts/item.asm"
 call AssembleScript $scriptEnemy "../vm_scripts/enemy.asm"
 call AssembleScript $scriptPlayer "../vm_scripts/player.asm"
 
+call InitBuilds
+
 #init
 proc
     setrate 100000
     write -1 $COMM_CELL $COMM_FIRST_OBJECT
     write -1 $COMM_CELL $COMM_LAST_OBJECT
     call MallocInit $OBJECT_MALLOC $OBJECT_MALLOC_CELL 511
+    call MallocInit $BUILD_MALLOC $BUILD_MALLOC_CELL $MAX_BUILDS
     set i 0
     ResetLoop:
         setmarker remove i
@@ -63,10 +78,11 @@ proc
     jump ResetLoop lessThan i 10000
     call CreateObject _ 5 5 0 0 $objRouter 0.5 $scriptEnemy
     call CreateObject _ 5 5 0 0 null 1 $scriptPlayer
+
     stop
 end
 
-defmac GetPlayerInput inputMove inputStrafe inputYaw inputPitch inputInteract inputSpecial cursorX cursorY shooting shootDown shootUp unit
+defmac GetPlayerInput inputMove inputStrafe inputYaw inputPitch inputInteract inputSpecial inputEquipment cursorX cursorY shooting shootDown shootUp unit
     set inputSpecial false
     jump Same equal @clientUnit oldUnit
         set inputSpecial true
@@ -78,6 +94,7 @@ defmac GetPlayerInput inputMove inputStrafe inputYaw inputPitch inputInteract in
         sensor shooting unit @shooting
         sensor shootX unit @shootX
         sensor shootY unit @shootY
+        sensor boost unit @boosting
         op sub cursorX shootX $camX
         op div cursorX cursorX $camH
         op sub cursorY shootY $camY
@@ -129,6 +146,9 @@ defmac GetPlayerInput inputMove inputStrafe inputYaw inputPitch inputInteract in
         set oldShootX shootX
         set oldShootY shootY
         set oldShooting shooting
+
+        op greaterThan inputEquipment boost oldBoost
+        set oldBoost boost
     jump NoSkipMovement always
     SkipMovement:
         set inputMove 0
@@ -205,10 +225,113 @@ defmac SetState state
     jump $GPSwitchState always
 end
 
+defmac UpdatePlayerPhysics dt moveStep moveStrafe playerYaw playerPitch
+    call GetPlayerAccel ax ay az dt moveStep moveStrafe playerYaw
+    call UpdatePlayerVelocity dx dy dz ax ay az dt
+    call UpdatePlayerPosition x y z dx dy dz dt
+end
+
+defmac GetPlayerAccel ax ay az dt moveStep moveStrafe playerYaw
+    read ax $COMM_CELL $COMM_PLAYER_AX
+    read ay $COMM_CELL $COMM_PLAYER_AY
+    read az $COMM_CELL $COMM_PLAYER_AZ
+
+    #player input
+    op sin sinpa playerYaw
+    op mul sinpa sinpa 100
+    op cos cospa playerYaw
+    op mul cospa cospa 100
+    op mul moveStepX sinpa moveStep
+    op mul moveStepY cospa moveStep
+    op mul moveStrafeX cospa moveStrafe
+    op mul moveStrafeY sinpa moveStrafe
+    op mul moveStepX moveStepX -1
+
+    op add ax ax moveStepX
+    op add ax ax moveStrafeX
+    op add ay ay moveStepY
+    op add ay ay moveStrafeY
+
+    #gravity
+    op add az az 9.8
+
+    write 0 $COMM_CELL $COMM_PLAYER_AX
+    write 0 $COMM_CELL $COMM_PLAYER_AY
+    write 0 $COMM_CELL $COMM_PLAYER_AZ
+end
+
+defmac UpdatePlayerVelocity dx dy dz ax ay az dt
+    read dx $COMM_CELL $COMM_PLAYER_DX
+    read dy $COMM_CELL $COMM_PLAYER_DY
+    read dz $COMM_CELL $COMM_PLAYER_DZ
+
+    op mul axt ax dt
+    op mul ayt ay dt
+    op mul azt az dt
+
+    op add dx dx axt
+    op add dy dy ayt
+    op add dz dz azt
+
+    op mul dx dx 0.8
+    op mul dy dy 0.8
+    #op mul dz dz 0.8
+
+    write dx $COMM_CELL $COMM_PLAYER_DX
+    write dy $COMM_CELL $COMM_PLAYER_DY
+    write dz $COMM_CELL $COMM_PLAYER_DZ
+end
+
+defmac UpdatePlayerPosition x y z dx dy dz dt
+    read x $COMM_CELL $COMM_PLAYER_X
+    read y $COMM_CELL $COMM_PLAYER_Y
+    read z $COMM_CELL $COMM_PLAYER_Z
+
+    op mul dxt dx dt
+    op mul dyt dy dt
+    op mul dzt dz dt
+
+    call PlayerCollide x y z dxt dyt dzt dt
+
+    op add x x dxt
+    op add y y dyt
+    op add z z dzt
+
+    write x $COMM_CELL $COMM_PLAYER_X
+    write y $COMM_CELL $COMM_PLAYER_Y
+    write z $COMM_CELL $COMM_PLAYER_Z
+end
+
+defmac PlayerCollide x y z dx dy dz dt
+    set onGround false
+    call PlayerCollideTerrain onGround x y z dx dy dz dt
+    write onGround $COMM_CELL $COMM_PLAYER_ON_GROUND
+end
+
+defmac PlayerCollideTerrain onGround x y z dx dy dz dt
+    call GetBiome biome x y
+    call GetBiomeCell biomeCell biome
+    call GetTerrainHeight height x y biomeCell
+    op sub height height $PLAYER_HEIGHT
+    op add cz z dz
+    jump NoCollide lessThan cz height
+        set onGround true
+        op sub dz height z
+        #select wdz lessThan dx 0 0 dz
+        #op div wdx dx dt
+        #op div wdy dy dt
+        op div wdz dz dt
+        #write wdx $COMM_CELL $COMM_PLAYER_DX
+        #write wdy $COMM_CELL $COMM_PLAYER_DY
+        write wdz $COMM_CELL $COMM_PLAYER_DZ
+    NoCollide:
+end
+
 #handle player inputs
 proc
     setrate 1000
     set playerPitch -90
+    write -10 $COMM_CELL $COMM_PLAYER_Z
     set $nextGPState $GP_GAMEPLAY
     $GPSwitchState:
     call StateEnd gameplayState
@@ -219,7 +342,7 @@ proc
         wait 1e-4
         call ComputeScreenValues @clientUnit
         call WriteScreenValues
-        call GetPlayerInput moveStep moveStrafe moveYaw movePitch pressInteract pressSpecial cursorX cursorY click clickDown clickUp @clientUnit
+        call GetPlayerInput moveStep moveStrafe moveYaw movePitch pressInteract pressSpecial pressEquipment cursorX cursorY click clickDown clickUp @clientUnit
 
         op add @counter @counter gameplayState
         jump StateGameplay always
@@ -263,30 +386,12 @@ proc
                 NoSelectInv:
             GPOverUI:
 
-            #move player
-            op sin sinpa playerYaw
-            op cos cospa playerYaw
-            op mul moveStep moveStep 0.1
-            op mul moveStrafe moveStrafe 0.1
-            op mul moveStepX sinpa moveStep
-            op mul moveStepY cospa moveStep
-            op mul moveStrafeX cospa moveStrafe
-            op mul moveStrafeY sinpa moveStrafe
-            op mul moveStepX moveStepX -1
-            op add $PLAYER_X $PLAYER_X moveStepX
-            op add $PLAYER_Y $PLAYER_Y moveStepY
-            op add $PLAYER_X $PLAYER_X moveStrafeX
-            op add $PLAYER_Y $PLAYER_Y moveStrafeY
-
-            #get player z
-            call GetTerrainHeight $PLAYER_Z $PLAYER_X $PLAYER_Y
-            op sub $PLAYER_Z $PLAYER_Z 1.5
+            read dt $COMM_CELL $COMM_DELTA_TIME
+            call UpdatePlayerPhysics dt moveStep moveStrafe playerYaw playerPitch
 
             #write values
             write pressSpecial $COMM_CELL $COMM_SPECIAL
-            write $PLAYER_X $COMM_CELL $COMM_PLAYER_X
-            write $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
-            write $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            write pressEquipment $COMM_CELL $COMM_EQUIPMENT
             write playerPitch $COMM_CELL $COMM_PLAYER_PITCH
 
         jump StateCheckEnd always
@@ -358,6 +463,8 @@ proc
     setrate 1000000
     write $ITEM_AXE $INV_TYPE 0
     write $ITEM_GUN $INV_TYPE 1
+    write $ITEM_BUILD $INV_TYPE 2
+    write $ITEM_JUMP $INV_TYPE 3
     set oldTime @second
     Loop:
         wait 1e-4
@@ -414,6 +521,7 @@ call RenderUI
 call UpdateItems
 call UpdateObjects
 call RenderProps
+call RenderBuilds
 call RenderTerrain
 call RenderObjs
 call RenderIcons

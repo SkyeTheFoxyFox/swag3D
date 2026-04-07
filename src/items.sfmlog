@@ -32,7 +32,9 @@ defmac HandleAxe
                 call GetPropValues px py scale _ index px py
                 read renderTime $PROP_STATUS index
                 jump NoProp lessThan @second renderTime
-                    call GetTerrainHeight pz px py
+                    call GetBiome biome px py
+                    call GetBiomeCell biomeCell biome
+                    call GetTerrainHeight pz px py biomeCell
                     jump NoProp equal pz 0
                     op sub distx x px
                     op sub disty y py
@@ -90,8 +92,87 @@ defmac HandleGun
     end
 end
 
+defmac HandleBuild
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read $PLAYER_X $COMM_CELL $COMM_PLAYER_X
+            read $PLAYER_Y $COMM_CELL $COMM_PLAYER_Y
+            read $PLAYER_Z $COMM_CELL $COMM_PLAYER_Z
+            read buildType $COMM_CELL $COMM_ITEM_BUILD_TYPE
+            read buildRot $COMM_CELL $COMM_ITEM_BUILD_ROTATION
+            read selectedSlot $COMM_CELL $COMM_HOTBAR_SELECTED
+            read selectedItem $INV_TYPE selectedSlot
+            jump End notEqual selectedItem $ITEM_BUILD
+                call ReadRotMatrix
+                call ReadScreenValues
+                call ApplyInvRotMatrixOrigin 0 0 3 dx dy dz
+                op add posX $PLAYER_X dx
+                op add posY $PLAYER_Y dy
+                op add posZ $PLAYER_Z dz
+                op round posX posX
+                op round posY posY
+                op ceil posZ posZ
+                read model $BUILD_ROM_MODEL buildType
+                select model equal buildType 0 $objRemoveBuild model
+                call QueueModel model posX posY posZ buildRot 1
+            read gameplayState $COMM_CELL $COMM_GAMEPLAY_STATE
+            jump End notEqual gameplayState $GP_GAMEPLAY
+            read $PLAYER_INTERACT $COMM_CELL $COMM_INTERACT
+            jump Interact equal $PLAYER_INTERACT true
+            read $PLAYER_SPECIAL $COMM_CELL $COMM_SPECIAL
+            jump Special equal $PLAYER_SPECIAL true
+            jump End always
+            Interact:
+                jump RemBuild equal buildType 0
+                    call PlaceBuild buildType posX posY posZ buildRot
+                jump End always
+                RemBuild:
+                    call RemoveBuild posX posY posZ
+            jump End always
+            Special:
+                jump NoRot equal buildType 0
+                op add buildRot buildRot 90
+                jump NoWrap lessThan buildRot 360
+                    op sub buildRot buildRot 360
+                    NoRot:
+                    op add buildType buildType 1
+                    op mod buildType buildType $_BUILD_buildCount
+                NoWrap:
+                write buildType $COMM_CELL $COMM_ITEM_BUILD_TYPE
+                write buildRot $COMM_CELL $COMM_ITEM_BUILD_ROTATION
+            End:
+        jump Loop always
+    end
+end
+
+defmac HandleJump
+    proc
+        setrate 1000
+        Loop:
+            wait 1e-4
+            read $PLAYER_EQUIPMENT $COMM_CELL $COMM_EQUIPMENT
+            jump NoInteract notEqual $PLAYER_EQUIPMENT true
+            read $PLAYER_ON_GROUND $COMM_CELL $COMM_PLAYER_ON_GROUND
+            jump NoInteract notEqual $PLAYER_ON_GROUND true
+            read gameplayState $COMM_CELL $COMM_GAMEPLAY_STATE
+            jump NoInteract notEqual gameplayState $GP_GAMEPLAY
+            read selectedSlot $COMM_CELL $COMM_HOTBAR_SELECTED
+            read selectedItem $INV_TYPE selectedSlot
+            jump NoInteract notEqual selectedItem $ITEM_JUMP
+                read dz $COMM_CELL $COMM_PLAYER_DZ
+                op sub dz dz 5
+                write dz $COMM_CELL $COMM_PLAYER_DZ
+            NoInteract:
+        jump Loop always
+    end
+end
+
 defmac UpdateItems
     call HandleAxe
     call HandleGun
+    call HandleBuild
+    call HandleJump
 end
 

@@ -110,11 +110,6 @@ defmac ApplyLight x y z radius px py pz
     op add maxZ tz radius
     op min maxZ maxZ $LIGHT_AREA_HALF
 
-    print "{0}, {0}"
-    format minZ
-    format maxZ
-    message mission
-
     call ComputeRequiredLightPower power radius
     jump Exit lessThanEq maxX minX
     jump Exit lessThanEq maxY minY

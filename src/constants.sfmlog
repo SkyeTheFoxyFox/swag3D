@@ -57,10 +57,21 @@ defmac Schem
     block $OBJECT_DATA9 @world-cell 16 -2
 
     block $ASM_GLOBAL_MEM @world-cell
+
+    block $BUILD_MALLOC_CELL @world-cell
+    block $BUILD_X @world-cell
+    block $BUILD_Y @world-cell
+    block $BUILD_Z @world-cell
+    block $BUILD_TYPE @world-cell
+    block $BUILD_ROTATION @world-cell
+
+    block $BUILD_ROM_MODEL @world-cell
+    block $BUILD_ROM_COLLISION @world-cell
 end
 
 #player properties
 pset $PLAYER_REACH_DISTANCE 5
+pset $PLAYER_HEIGHT 1.5
 pset $PROP_RESPAWN_TIME 60
 
 #background colors
@@ -116,6 +127,16 @@ pset $COMM_SKYLIGHT 26
 pset $COMM_DELTA_TIME 27
 pset $COMM_SCHEM_X 28
 pset $COMM_SCHEM_Y 29
+pset $COMM_ITEM_BUILD_TYPE 30
+pset $COMM_ITEM_BUILD_ROTATION 31
+pset $COMM_PLAYER_DX 32
+pset $COMM_PLAYER_DY 33
+pset $COMM_PLAYER_DZ 34
+pset $COMM_PLAYER_AX 35
+pset $COMM_PLAYER_AY 36
+pset $COMM_PLAYER_AZ 37
+pset $COMM_EQUIPMENT 38
+pset $COMM_PLAYER_ON_GROUND 39
 
 #obj render states
 pset $OBJ_TASK_ROTATE 0
@@ -129,11 +150,16 @@ pset $GP_INVENTORY 1 #inventory state, shows the inventory
 pset $ITEM_NONE 0
 pset $ITEM_AXE 1
 pset $ITEM_GUN 2
+pset $ITEM_BUILD 3
+pset $ITEM_JUMP 4
 
 #assembler/exec
 pset $ASM_CODE_START_X 40
 pset $ASM_CODE_START_Y 194
 pset $ASM_CODE_BLOCK_SIZE 4096
+
+#max marker id for rendering
+pset $MARKER_MAX_ID 6000
 
 #predefined markers
 pset $MARKER_BACKGROUND 9000

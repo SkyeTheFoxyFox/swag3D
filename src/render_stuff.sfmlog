@@ -30,7 +30,7 @@ end
 
 defmac RenderObjs
     proc
-        setrate 300000
+        setrate 1000000
         Loop:
             wait 1e-4
             call SetFOV $FOV
@@ -197,6 +197,7 @@ defmac RenderObjs
                     setmarker texture $markerID false material
                     setmarker world $markerID true
                     op add $markerID $markerID 1
+                    op mod $markerID $markerID $MARKER_MAX_ID
                     NextQuad:
                     op add $taskProgress $taskProgress 1
             RenderLoopEnd:
@@ -338,6 +339,7 @@ defmac RenderIcons
                     setmarker texture $markerID false material
                     setmarker world $markerID true
                     op add $markerID $markerID 1
+                    op mod $markerID $markerID $MARKER_MAX_ID
                     NextQuad:
                     op add $taskProgress $taskProgress 1
             RenderLoopEnd:
@@ -349,11 +351,8 @@ defmac RenderIcons
 end
 
 defmac ClearMarkers
-    pop div resetProcCount 4000 190
-    pop ceil resetProcCount resetProcCount
-    for range _ resetProcCount
     proc
-        setrate 1000
+        setrate 100000
         Loop:
             wait 1e-4
             read $markerID $COMM_CELL $COMM_MARKER_ID
@@ -362,11 +361,9 @@ defmac ClearMarkers
                 setmarker world $markerID false
             op add count count 1
             op add $markerID $markerID 1
-            jump Exit greaterThanEq $markerID 4000
-            jump ClearLoop lessThan count 190
-            Exit:
+            pop add clearMaxId $MARKER_MAX_ID 100
+            jump ClearLoop lessThan $markerID clearMaxId
             write $markerID $COMM_CELL $COMM_MARKER_ID
         jump Loop always
-    end
     end
 end

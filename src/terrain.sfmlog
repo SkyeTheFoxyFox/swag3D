@@ -1,19 +1,38 @@
 import vec.sfmlib
 
-defmac GetTerrainHeight outHeight x y
+defmac GetTerrainHeight outHeight x y biomeCell
+
+    read mountainHeight biomeCell $BIOME_CELL_MOUNTAIN_HEIGHT
+    read hillHeight biomeCell $BIOME_CELL_HILL_HEIGHT
+    read riverDepth biomeCell $BIOME_CELL_RIVER_DEPTH
+    read riverHeightThreshold biomeCell $BIOME_RIVER_HEIGHT_THRESHOLD
+    read heightOffset biomeCell $BIOME_CELL_HEIGHT_OFFSET
+
+    pset mountainRegionFreq 1024
+    pset mountainFreq 128
+    pset mountainPow 3
+
+    pset hillFreq 64
+
+    pset detailHeight 0.25
+    pset detailFreq 8
+
+    pset riverFreq 900
+    pset riverPow 13
+
     #warp coords
     call GetNoiseWarp warp x y 0.1
     call ApplyNoiseWarp lx ly 2 warp x y
 
     #mountain potency
-    call Noise region 1024 64 x y
+    call Noise region mountainRegionFreq mountainHeight x y
 
     #mountain noise
-    call PowNoise height 128 region 3 lx ly
+    call PowNoise height mountainFreq region mountainPow lx ly
 
     #base noise
-    call NoiseStep height 64 4 lx ly
-    call NoiseStep height 8 0.25 lx ly
+    call NoiseStep height hillFreq hillHeight lx ly
+    call NoiseStep height detailFreq detailHeight lx ly
 
     #river warp
     op add trx x 100
@@ -21,14 +40,14 @@ defmac GetTerrainHeight outHeight x y
     call ApplyNoiseWarp rx ry 8 rwarp x y
 
     #river noise
-    call RiverNoise river 900 10 13 rx ry
+    call RiverNoise river riverFreq riverDepth riverPow rx ry
 
     #river mask
-    call RiverMask riverMask height
+    call RiverMask riverMask height riverHeightThreshold
     op mul river river riverMask
 
     #vertical offset
-    op sub height height 6
+    op sub height height heightOffset
 
     #apply river
     op add height height river
@@ -69,8 +88,8 @@ defmac RiverNoise out freq amp power x y
     op mul out out amp
 end
 
-defmac RiverMask out height
-    op div out height 12
+defmac RiverMask out height threshold
+    op div out height threshold
     op mul out out -1
     op sub out 1 out
     op min out out 1
@@ -88,18 +107,14 @@ defmac ApplyNoiseWarp lx ly mult warp x y
     op add ly y lwarp
 end
 
-
-# Gets the texture for a tile at a given position and height
-defmac GetTile tile x y height
-    
-end
-
 defmac RenderTile x y size
     set maxDepth -1
     set depthSum 0
     set minHeight 1000000
     set maxHeight -1000000
     op add markerID2 $markerID 1
+    call GetBiome biome x y
+    call GetBiomeAll biomeLayers biomeCell biome
     set i 0
     Loop:
         op add ti i 1
@@ -110,7 +125,7 @@ defmac RenderTile x y size
         op mul ly ly size
         op add lx lx x
         op add ly ly y
-        mac GetTerrainHeight lz lx ly
+        mac GetTerrainHeight lz lx ly biomeCell
         write lz $QUAD_INFO i
         op max maxHeight maxHeight lz
         op min minHeight minHeight lz
@@ -142,13 +157,13 @@ defmac RenderTile x y size
     op add variant variant 1
     op mul variant variant 1000000
     op floor variant variant
-    call GetTileType _ minHeight variant
+    call GetTile _ minHeight variant biomeLayers
     setmarker texture $markerID true
     setmarker uvi $markerID 0 0 0
     setmarker uvi $markerID 1 0 1
     setmarker uvi $markerID 2 1 1
     setmarker uvi $markerID 3 1 0
-    call GetTileType tileHeight maxHeight variant
+    call GetTile tileHeight maxHeight variant biomeLayers
     setmarker texture markerID2 true
     setmarker uvi markerID2 0 0 0
     setmarker uvi markerID2 1 0 1
@@ -168,6 +183,7 @@ defmac RenderTile x y size
     op add i i 1
     jump FadeLoop lessThan i 4
     op add $markerID $markerID 2
+    op mod $markerID $markerID $MARKER_MAX_ID
     NoDraw:
 end
 
@@ -196,12 +212,6 @@ defmac RenderTerrain
             RenderLoop:
                 jump Exit equal $stackPointer -1
                 call ReadStack tileX tileY tileSize
-                #jump NoCheckTile lessThanEq tileSize 16
-                #    call CheckTile result tileX tileY tileSize failed
-                #    op add $stackPointer $stackPointer failed
-                #    jump Exit equal failed true
-                #    jump RenderLoopEnd equal result false
-                #NoCheckTile:
                 op div halfTileSize tileSize 2
                 op add tileX2 tileX halfTileSize
                 op add tileY2 tileY halfTileSize
@@ -258,41 +268,107 @@ defmac ComputeTileColor color
     packcolor color light light light 1
 end
 
-defmac GetTileType out height variant
-    jump Water equal height 0
-    jump Sand greaterThan height -1
-    jump Grass greaterThan height -15
-    jump Stone greaterThan height -25
-    Snow:
-        set out -10000
-        op mod v variant 3
-        op add v v 1
-        print "snow"
-        print v
-    jump End always
-    Stone:
-        set out -25
-        op mod v variant 3
-        op add v v 1
-        print "stone"
-        print v
-    jump End always
-    Grass:
-        set out -15
-        op mod v variant 3
-        op add v v 1
-        print "grass"
-        print v
-    jump End always
-    Sand:
-        set out -1
-        op mod v variant 3
-        op add v v 1
-        print "sand-floor"
-        print v
-    jump End always
-    Water:
-        set out 0
-        print "deep-water"
-    End:
+defmac GetBiomeStats elevation temperature humidity x y
+    pset elevationFreq 0.005
+    pset temperatureFreq 0.003
+    pset humidityFreq 0.004
+
+    op mul lx x elevationFreq
+    op mul ly y elevationFreq
+    op noise elevation lx ly
+
+    op mul lx x temperatureFreq
+    op add lx lx 1000
+    op mul ly y temperatureFreq
+    op noise temperature lx ly
+
+    op mul lx x humidityFreq
+    op add lx lx 2000
+    op mul ly y humidityFreq
+    op noise humidity lx ly
+end
+
+defmac GetBiome biome x y
+    set biome $biomeGrasslands
+    #call GetBiomeStats elev temp humi x y
+    #jump HighElev greaterThan elev -0.3
+    #LowElev:
+    #    set biome $biomeOcean
+    #    jump End always
+    #HighElev:
+    #    jump HighTemp greaterThan temp 0.3
+    #    jump MedTemp greaterThan temp -0.3
+    #    LowTemp:
+    #        jump LowTempHighHumi greaterThan humi 0.3
+    #        jump LowTempMedHumi greaterThan humi -0.3
+    #        LowTempLowHumi:
+    #            set biome $biomeGrasslands
+    #            jump End always
+    #        LowTempMedHumi:
+    #            set biome $biomeGrasslands
+    #            jump End always
+    #        LowTempHighHumi:
+    #            set biome $biomeSporelands
+    #            jump End always
+    #    MedTemp:
+    #        jump MedTempHighHumi greaterThan humi 0.3
+    #        jump MedTempMedHumi greaterThan humi -0.3
+    #        MedTempLowHumi:
+    #            set biome $biomeGrasslands
+    #            jump End always
+    #        MedTempMedHumi:
+    #            set biome $biomeGrasslands
+    #            jump End always
+    #        MedTempHighHumi:
+    #            set biome $biomeSporelands
+    #            jump End always
+    #    HighTemp:
+    #        jump HighTempHighHumi greaterThan humi 0.3
+    #        jump HighTempMedHumi greaterThan humi -0.3
+    #        HighTempLowHumi:
+    #            set biome $biomeGrasslands
+    #            jump End always
+    #        HighTempMedHumi:
+    #            set biome $biomeGrasslands
+    #            jump End always
+    #        HighTempHighHumi:
+    #            set biome $biomeSporelands
+    #            jump End always
+    #End:
+end
+
+defmac GetBiomeLayers layers biome
+    read x $COMM_CELL $COMM_SCHEM_X
+    read y $COMM_CELL $COMM_SCHEM_Y
+    op add x x biome
+    op sub y y 4
+    getblock building layers x y
+end
+
+defmac GetBiomeCell cell biome
+    read x $COMM_CELL $COMM_SCHEM_X
+    read y $COMM_CELL $COMM_SCHEM_Y
+    op add x x biome
+    op sub y y 5
+    getblock building cell x y
+end
+
+defmac GetBiomeAll layers cell biome
+    read x $COMM_CELL $COMM_SCHEM_X
+    read y $COMM_CELL $COMM_SCHEM_Y
+    op add x x biome
+    op sub y y 4
+    getblock building layers x y
+    op sub y y 1
+    getblock building cell x y
+end
+
+defmac GetTile out height variant biomeLayers
+    op floor out height 
+    op mul h height -1
+    op ceil layer h
+    lookup block layer layer
+    sensor layer layer @name
+    read texture biomeLayers layer
+    print texture
 end

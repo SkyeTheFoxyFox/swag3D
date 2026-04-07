@@ -27,9 +27,13 @@ defmac GetPropType type x y z
     op mul propMod propMod 1000000
     op floor propMod propMod
     jump Sand greaterThan z -1
-    jump Grass greaterThan z -20
+    jump Grass greaterThan z -15
+    jump Stone greaterThan z -25
     Snow:
         set type $objSnowRock
+        jump EndCase always
+    Stone:
+        set type $objRock
         jump EndCase always
     Grass:
         op mod propMod propMod 2
@@ -72,7 +76,9 @@ defmac RenderProps
                 call GetPropValues x y scale rot index x y
                 read renderTime $PROP_STATUS index
                 jump NoRender lessThan @second renderTime
-                call GetTerrainHeight z x y
+                call GetBiome biome x y
+                call GetBiomeCell biomeCell biome
+                call GetTerrainHeight z x y biomeCell
                 jump NoRender equal z 0
                     call GetPropType type x y z
                     call QueueModel type x y z rot scale

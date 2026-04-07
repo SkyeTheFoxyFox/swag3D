@@ -398,7 +398,9 @@ end
 call AddInstruction "die" die 1
 
 defmac trn
-    call GetTerrainHeight $_ASM_registerA $_ASM_registerA $_ASM_registerX
+    call GetBiome biome $_ASM_registerA $_ASM_registerX
+    call GetBiomeCell biomeCell biome
+    call GetTerrainHeight $_ASM_registerA $_ASM_registerA $_ASM_registerX biomeCell
 end
 call AddInstruction "trn" trn 1
 
